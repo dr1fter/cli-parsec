@@ -2,6 +2,7 @@ package org.dr1ftersoft.cliparsec;
 
 import static java.lang.String.format;
 import static java.util.Arrays.copyOf;
+import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.singleton;
 
 import java.lang.annotation.Annotation;
@@ -17,22 +18,52 @@ public class GlobalOptionsParser
 	{
 		Class<?> clazz = options.getClass();
 		Iterable<Field> fields = annotatedFields(clazz);
+		Iterable<CommandRegistration> commands = annotatedCommands(clazz);
 
-		ParsingCtx ctx = new ParsingCtx(rawArgs, fields);
+		ParsingCtx ctx = new ParsingCtx(rawArgs, fields, commands);
 
 		for (; ctx.hasNext();)
 		{
 			ctx.determineAndConsumeNextFields();
 			ctx.setOrAppendToField(options);
 		}
+		
+		String[] remainder = ctx.remainingArgs();
+		if (remainder.length == 0) return options;
 
+		//parse sub command if such a command exists.
+		CommandRegistration subCommand = determineSubCommand_orFail(remainder[0], commands);		
+		
+		parse(subCommand.field.get(options), tail(remainder));
+		
 		return options;
 	}
+	
+	private String[] tail(String[] args)
+	{
+		return copyOfRange(args, 1, args.length);
+	}
+	
+	private CommandRegistration determineSubCommand_orFail(String rawCmdArg, Iterable<CommandRegistration> commands)
+	{		
+		for (CommandRegistration command : commands)
+			if(command.annotation.name().equals(rawCmdArg)) return command;
+		
+		List<String> commandNames = new ArrayList<String>();
+		for (CommandRegistration command : commands)
+			commandNames.add(command.annotation.name());
+		String subCmdDescription = org.apache.commons.lang.StringUtils.join(commandNames.toArray(new String[0]), ',');
+		
+		throw new RuntimeException(format("unexpected token: '%s' - expected a sub-command (one of: %s)", rawCmdArg,
+				subCmdDescription));
+	}
+	
 
 	/**
 	 * determines and returns all fields from the given class that are annotated with the GlobalOptions annotation
 	 * 
-	 * @param clazz not <code>null</code>
+	 * @param clazz
+	 *            not <code>null</code>
 	 * @return never <code>null</code>
 	 */
 	private Iterable<Field> annotatedFields(Class<?> clazz)
@@ -48,39 +79,81 @@ public class GlobalOptionsParser
 		return annotatedFields;
 	}
 
+	private Iterable<CommandRegistration> annotatedCommands(Class<?> clazz)
+	{
+		List<CommandRegistration> annotatedFields = new ArrayList<CommandRegistration>();
+		for (Field f : clazz.getFields())
+		{
+			Command a = f.getAnnotation(Command.class);
+			if (a == null)
+				continue;
+			annotatedFields.add(new CommandRegistration(f, a));
+		}
+		return annotatedFields;
+	}
+
+	private static class CommandRegistration
+	{
+		public final Field		field;
+		public final Command	annotation;
+
+		public CommandRegistration(Field field, Command annotation)
+		{
+			this.field = field;
+			this.annotation = annotation;
+		}
+	}
+
 	private static class ParsingCtx
 	{
-		private final Set<FieldRegistration>	allFields;
+		private final Set<FieldRegistration>		allFields;
 
-		private Iterable<FieldRegistration>		currentFields	= null;
-		private String[]						args;
-		private int								pos				= 0;
+		private Iterable<FieldRegistration>			currentFields	= null;
+		private String[]							args;
+		private int									pos				= 0;
 
-		public ParsingCtx(String[] args, Iterable<Field> fields)
+		private final Iterable<CommandRegistration>	subCommands;
+
+		public ParsingCtx(String[] args, Iterable<Field> fields,
+				Iterable<CommandRegistration> subCommands)
 		{
 			this.args = args;
 			this.allFields = new HashSet<FieldRegistration>();
 			for (Field f : fields)
 				this.allFields.add(new FieldRegistration(f));
+			this.subCommands = subCommands;
 		}
 
+		/**
+		 * Returns a value indicating whether or not parsing in the current context ought to be continue. This is true
+		 * in cases where there still are arguments to process that belong to the this parsing context.
+		 * 
+		 * @return <code>true</code> iff there is at least one more raw arg <em>and</em> the upcoming arg is
+		 *         <em>not</em> a sub command. Otherwise <code>false</code>
+		 */
 		public boolean hasNext()
 		{
-			return pos < args.length;
+			if (pos >= args.length)
+				return false;
+			// we have at least one more arg
+
+			// --> ensure the next arg is not a subcommand (in which case we do not want to continue)
+			String currentRawArg = args[pos];
+			for (CommandRegistration command : subCommands)
+				if (command.annotation.name().equals(currentRawArg))
+					return false;
+
+			return true;
+		}
+		
+		public String[] remainingArgs()
+		{
+			return copyOfRange(args, pos, args.length);
 		}
 
 		private String consume()
 		{
 			return args[pos++];
-		}
-
-		private Iterable<FieldRegistration> availableFields()
-		{
-			List<FieldRegistration> fields = new ArrayList<FieldRegistration>();
-			for (FieldRegistration fr : allFields)
-				if (fr.hasAllowedOccursLeft())
-					fields.add(fr);
-			return fields;
 		}
 
 		private Iterable<FieldRegistration> determineFields(String rawArg)
@@ -105,7 +178,6 @@ public class GlobalOptionsParser
 
 			for (FieldRegistration fr : allFields)
 			{
-				Field f = fr.field;
 				String optionStr = Utils.longOption(fr);
 				if (argName.equals(optionStr))
 					return singleton(fr);
@@ -128,7 +200,6 @@ public class GlobalOptionsParser
 			{
 				for (FieldRegistration fr : allFields)
 				{
-					Field f = fr.field;
 					Character optionChar = Utils.shortOption(fr);
 					if (optionChar == null
 							|| shortOptionChar != optionChar.charValue())
