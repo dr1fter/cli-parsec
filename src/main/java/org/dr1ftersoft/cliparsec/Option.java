@@ -7,7 +7,7 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
-public @interface GlobalOption
+public @interface Option
 {
 	public final int MAX_OCCURS_DEFAULT_BEHAVIOUR = -1;
 	public final char NOT_SET = '\00';
@@ -25,7 +25,7 @@ public @interface GlobalOption
 	 * 
 	 * <em>must not</em> be set to a value less than -1.
 	 * 
-	 * Use {@link GlobalOption#MAX_OCCURS_DEFAULT_BEHAVIOUR} to explicitly set this default behaviour. Setting a value > 1 for non-array fields will allow an option to
+	 * Use {@link Option#MAX_OCCURS_DEFAULT_BEHAVIOUR} to explicitly set this default behaviour. Setting a value > 1 for non-array fields will allow an option to
 	 * be specified multiple times. In such a case, option values will be overwritten.
 	 * 
 	 * @return the maximum amount of occurrences
@@ -37,4 +37,16 @@ public @interface GlobalOption
 	 * @return
 	 */
 	int argCount() default 1;
+	
+	
+	public RequireMode required() default RequireMode.OPTIONAL;
+	
+	public int optionGroup() default -1;
+	
+	public enum RequireMode
+	{
+		OPTIONAL, REQUIRED, REQUIRED_MEMBER_OF_OPTIONAL_GROUP
+	}
+	
+	
 }

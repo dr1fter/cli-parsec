@@ -7,9 +7,9 @@ import static org.junit.Assert.assertThat;
 
 import org.junit.Test;
 
-public class GlobalOptionsParserTest
+public class OptionsParserTest
 {
-	GlobalOptionsParser examinee = new GlobalOptionsParser();
+	OptionsParser examinee = new OptionsParser();
 	
 	@Test
 	public void global_options_with_args_should_be_parsed() throws Exception
@@ -50,32 +50,32 @@ public class GlobalOptionsParserTest
 	
 	private static class OptionsWithoutArgs
 	{
-		@GlobalOption(longOption="option1",shortOption='1', argCount=0)
+		@Option(longOption="option1",shortOption='1', argCount=0)
 		public boolean option1;
 		
-		@GlobalOption(shortOption='2', argCount=0)
+		@Option(shortOption='2', argCount=0)
 		public boolean option2;
 		
-		@GlobalOption(shortOption='3', argCount=0)
+		@Option(shortOption='3', argCount=0)
 		public boolean option3;
 		
-		@GlobalOption(shortOption='4', argCount=0)
+		@Option(shortOption='4', argCount=0)
 		public boolean option4;
 	}
 	
 	private static class OptionsWithArgs
 	{
-		@GlobalOption(longOption="option",shortOption='o')
+		@Option(longOption="option",shortOption='o')
 		public String option1;
-		@GlobalOption()
+		@Option()
 		public String option2;
 		
-		@GlobalOption(shortOption='2')
+		@Option(shortOption='2')
 		public String opt3;
-		@GlobalOption(longOption="long", shortOption='4')
+		@Option(longOption="long", shortOption='4')
 		public String shortOpt4;
 		
-		@GlobalOption(maxOccurs=4)
+		@Option(maxOccurs=4)
 		public String[] arr;
 	}
 	

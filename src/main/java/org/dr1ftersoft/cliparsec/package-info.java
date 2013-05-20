@@ -10,7 +10,7 @@
  *   [global options] command [command options]
  *   
  * To implement this example, declare a type that corresponds to the overall options 'Options'. Annotate fields
- * within this type using the 'GlobalOption' annotation. Supported types for fields are <code>String</code> and
+ * within this type using the 'Option' annotation. Supported types for fields are <code>String</code> and
  * <code>boolean</code> (string for options with args, boolean for options without args).
  * 
  * Declare an additional type for each supported (sub-)command. Add an instance of each sub command type to the

@@ -3,14 +3,12 @@ package org.dr1ftersoft.cliparsec;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertThat;
 
-import org.hamcrest.Matchers;
 import org.junit.Test;
 
 public class SubCommandTest
 {
-	GlobalOptionsParser	examinee	= new GlobalOptionsParser();
+	OptionsParser	examinee	= new OptionsParser();
 
 	@Test
 	public void subCommandOptions_should_be_parsed() throws Exception
@@ -37,7 +35,7 @@ public class SubCommandTest
 	
 	private class OptionsWithSubCommands
 	{
-		@GlobalOption(argCount=0)
+		@Option(argCount=0)
 		public boolean option1;
 		
 		@Command(name="command")
@@ -45,14 +43,14 @@ public class SubCommandTest
 		
 		public class SubCommand
 		{
-			@GlobalOption(argCount=0)
+			@Option(argCount=0)
 			public boolean subOption1;
 		}
 	}
 	
 	private class OptionsWithSubCommandsWithSubCommands
 	{
-		@GlobalOption(argCount=1)
+		@Option(argCount=1)
 		public String topOption;
 		
 		@Command(name="sub-command")

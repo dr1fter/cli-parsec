@@ -1,18 +1,28 @@
 package org.dr1ftersoft.cliparsec;
 
+import static com.google.common.base.Joiner.on;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.collect.FluentIterable.from;
+import static com.google.common.collect.Iterables.transform;
+import static com.google.common.collect.Lists.newArrayList;
+import static com.google.common.collect.Sets.newHashSet;
 import static java.lang.String.format;
+import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOf;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.singleton;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class GlobalOptionsParser
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
+
+public class OptionsParser
 {
 	public <T> T parse(T options, String... rawArgs) throws Exception
 	{
@@ -27,37 +37,41 @@ public class GlobalOptionsParser
 			ctx.determineAndConsumeNextFields();
 			ctx.setOrAppendToField(options);
 		}
-		
-		String[] remainder = ctx.remainingArgs();
-		if (remainder.length == 0) return options;
 
-		//parse sub command if such a command exists.
-		CommandRegistration subCommand = determineSubCommand_orFail(remainder[0], commands);		
-		
+		String[] remainder = ctx.remainingArgs();
+		if (remainder.length == 0)
+			return options;
+
+		// parse sub command if such a command exists.
+		CommandRegistration subCommand = determineSubCommand_orFail(
+				remainder[0], commands);
+
 		parse(subCommand.field.get(options), tail(remainder));
-		
+
 		return options;
 	}
-	
+
 	private String[] tail(String[] args)
 	{
 		return copyOfRange(args, 1, args.length);
 	}
-	
-	private CommandRegistration determineSubCommand_orFail(String rawCmdArg, Iterable<CommandRegistration> commands)
-	{		
-		for (CommandRegistration command : commands)
-			if(command.annotation.name().equals(rawCmdArg)) return command;
+
+	private CommandRegistration determineSubCommand_orFail(String rawCmdArg,
+			Iterable<CommandRegistration> commands)
+	{
+		Optional<CommandRegistration> subCommand = 
+				from(commands)
+				.firstMatch(CommandRegistration.commandWithName(rawCmdArg));
 		
-		List<String> commandNames = new ArrayList<String>();
-		for (CommandRegistration command : commands)
-			commandNames.add(command.annotation.name());
-		String subCmdDescription = org.apache.commons.lang.StringUtils.join(commandNames.toArray(new String[0]), ',');
+		if(subCommand.isPresent()) return subCommand.get();
 		
-		throw new RuntimeException(format("unexpected token: '%s' - expected a sub-command (one of: %s)", rawCmdArg,
-				subCmdDescription));
+		Iterable<String> commandNames = transform(commands, CommandRegistration.getCommandName);		
+		String subCmdDescription = on(',').join(commandNames);
+
+		throw new RuntimeException(format(
+				"unexpected token: '%s' - expected a sub-command (one of: %s)",
+				rawCmdArg, subCmdDescription));
 	}
-	
 
 	/**
 	 * determines and returns all fields from the given class that are annotated with the GlobalOptions annotation
@@ -68,28 +82,16 @@ public class GlobalOptionsParser
 	 */
 	private Iterable<Field> annotatedFields(Class<?> clazz)
 	{
-		List<Field> annotatedFields = new ArrayList<Field>();
-		for (Field f : clazz.getFields())
-		{
-			Annotation a = f.getAnnotation(GlobalOption.class);
-			if (a == null)
-				continue;
-			annotatedFields.add(f);
-		}
-		return annotatedFields;
+		return from(asList(clazz.getFields())).filter(Utils.hasAnnotation(Option.class));
 	}
-
+	
 	private Iterable<CommandRegistration> annotatedCommands(Class<?> clazz)
-	{
-		List<CommandRegistration> annotatedFields = new ArrayList<CommandRegistration>();
-		for (Field f : clazz.getFields())
-		{
-			Command a = f.getAnnotation(Command.class);
-			if (a == null)
-				continue;
-			annotatedFields.add(new CommandRegistration(f, a));
-		}
-		return annotatedFields;
+	{		
+		return
+				from(asList(clazz.getFields()))
+				.filter(Utils.hasAnnotation(Command.class))
+				.filter(Predicates.notNull())
+				.transform(CommandRegistration.createCommandRegistation);		
 	}
 
 	private static class CommandRegistration
@@ -101,6 +103,35 @@ public class GlobalOptionsParser
 		{
 			this.field = field;
 			this.annotation = annotation;
+		}
+
+		/**
+		 * function for usage w/ 'google-collections' - returns a cmd registration's command name.
+		 */
+		public final static Function<CommandRegistration, String>	getCommandName	= 
+				new Function<CommandRegistration, String>()
+				{
+					public String apply(CommandRegistration commandRegistration)
+					{
+						return commandRegistration.annotation.name();
+					}
+				};
+				
+		public final static Function<Field,CommandRegistration> createCommandRegistation =
+				new Function<Field,CommandRegistration>()
+				{
+					public CommandRegistration apply(Field field)
+					{
+						checkNotNull(field);
+						Command commandAnnotation = field.getAnnotation(Command.class);
+						if (commandAnnotation == null) return null;
+						return new CommandRegistration(field, commandAnnotation);
+					}
+				};
+				
+		public final static Predicate<CommandRegistration> commandWithName(final String name)
+		{
+			return Predicates.compose(Predicates.equalTo(name), getCommandName);			
 		}
 	}
 
@@ -118,7 +149,7 @@ public class GlobalOptionsParser
 				Iterable<CommandRegistration> subCommands)
 		{
 			this.args = args;
-			this.allFields = new HashSet<FieldRegistration>();
+			this.allFields = newHashSet();
 			for (Field f : fields)
 				this.allFields.add(new FieldRegistration(f));
 			this.subCommands = subCommands;
@@ -145,7 +176,7 @@ public class GlobalOptionsParser
 
 			return true;
 		}
-		
+
 		public String[] remainingArgs()
 		{
 			return copyOfRange(args, pos, args.length);
@@ -158,9 +189,8 @@ public class GlobalOptionsParser
 
 		private Iterable<FieldRegistration> determineFields(String rawArg)
 		{
-			if (rawArg == null)
-				throw new NullPointerException();
-
+			checkNotNull(rawArg);
+			
 			boolean longArg = rawArg.startsWith("--");
 			boolean shortArg = !longArg && rawArg.startsWith("-");
 
@@ -194,7 +224,7 @@ public class GlobalOptionsParser
 		private Iterable<FieldRegistration> _determineShortOptionField(
 				String argWithoutPrefix)
 		{
-			List<FieldRegistration> matchedRegistrations = new ArrayList<FieldRegistration>();
+			List<FieldRegistration> matchedRegistrations = newArrayList(); 
 			// multiple short options may be specified - iterable over all chars:
 			for (char shortOptionChar : argWithoutPrefix.toCharArray())
 			{
@@ -278,15 +308,15 @@ public class GlobalOptionsParser
 
 		private class FieldRegistration
 		{
-			public final Field			field;
-			public final int			maxOccurs;
-			public int					occurs;
-			public final GlobalOption	annotation;
+			public final Field	field;
+			public final int	maxOccurs;
+			public int			occurs;
+			public final Option	annotation;
 
 			public FieldRegistration(Field field)
 			{
 				this.field = field;
-				this.annotation = field.getAnnotation(GlobalOption.class);
+				this.annotation = field.getAnnotation(Option.class);
 				this.maxOccurs = annotation.maxOccurs();
 			}
 
@@ -294,7 +324,7 @@ public class GlobalOptionsParser
 			{
 				switch (maxOccurs)
 				{
-				case GlobalOption.MAX_OCCURS_DEFAULT_BEHAVIOUR:
+				case Option.MAX_OCCURS_DEFAULT_BEHAVIOUR:
 					if (field.getType().isArray())
 						return true;
 					return occurs < 1;
@@ -307,7 +337,7 @@ public class GlobalOptionsParser
 			{
 				switch (maxOccurs)
 				{
-				case GlobalOption.MAX_OCCURS_DEFAULT_BEHAVIOUR:
+				case Option.MAX_OCCURS_DEFAULT_BEHAVIOUR:
 					if (field.getType().isArray())
 						return "unlimited";
 					return "1";
@@ -330,7 +360,7 @@ public class GlobalOptionsParser
 				if (fr == null)
 					throw new NullPointerException();
 
-				if (fr.annotation.shortOption() != GlobalOption.NOT_SET)
+				if (fr.annotation.shortOption() != Option.NOT_SET)
 					return fr.annotation.shortOption();
 
 				// fallback to field name:
@@ -354,6 +384,21 @@ public class GlobalOptionsParser
 				// fallback to field name:
 				return fr.field.getName();
 			}
+		}
+	}
+	
+	private static class Utils
+	{
+		private static Predicate<Field> hasAnnotation(final Class<? extends Annotation> annotation)
+		{
+			return new Predicate<Field>()
+			{
+				public boolean apply(Field f)
+				{
+					checkNotNull(f);
+					return f.getAnnotation(annotation) != null;
+				}
+			};
 		}
 	}
 }
