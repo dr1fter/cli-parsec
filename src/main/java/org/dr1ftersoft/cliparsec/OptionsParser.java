@@ -5,6 +5,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Predicates.compose;
 import static com.google.common.base.Predicates.equalTo;
 import static com.google.common.base.Predicates.notNull;
+import static com.google.common.base.Predicates.or;
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Iterables.transform;
 import static com.google.common.collect.Lists.newArrayList;
@@ -283,7 +284,18 @@ public class OptionsParser
 					continue;
 				}
 
-				for (int i = 0; i < fieldRegistration.annotation.argCount(); i++)
+				int argCount = fieldRegistration.annotation.argCount();
+				if (fieldRegistration.annotation.argCount() == Option.ARG_COUNT_DEFAULT_BEHAVIOUR)
+				{
+					if (!fieldRegistration.field.getType().isArray())
+						argCount = 1;
+					else
+						argCount = from(asList(remainingArgs()))
+									.filter(Utils.allUntilNextOption())
+									.size();
+				}
+				
+				for (int i = 0; i < argCount; i++)
 				{
 					String valueStr = consume();
 					Object value = fieldRegistration.converter.apply(valueStr);
@@ -295,7 +307,7 @@ public class OptionsParser
 						if (originalValues == null)
 						{
 							Object newArray = newInstance(fieldType.getComponentType(), 1);
-							Array.set(newArray, 0, valueStr);
+							Array.set(newArray, 0, value);
 							
 							field.set(options, newArray);
 						}
@@ -306,7 +318,7 @@ public class OptionsParser
 							newValues[newValues.length - 1] = value;
 							field.set(options, newValues);
 						}
-						return;
+						continue;
 					}
 					// TODO: also support Collections
 					field.set(options, value);
@@ -397,6 +409,40 @@ public class OptionsParser
 				// fallback to field name:
 				return fr.field.getName();
 			}
+			
+			
+			static final Predicate<String> allUntil (final Predicate<String> predicate)
+			{				
+				return new Predicate<String>()
+						{
+							private boolean encounteredOption = false; 
+							public boolean apply(String arg)
+							{
+								if (encounteredOption) return false;
+								return !(encounteredOption = predicate.apply(arg));
+							}
+						};
+			}
+			
+			static final Predicate<String> shortOption = new Predicate<String>()
+					{
+						public boolean apply(String arg)
+						{
+							return arg.startsWith("-");
+						}
+					};
+			static final Predicate<String> longOption = new Predicate<String>()
+					{
+						public boolean apply(String arg)
+						{
+							return arg.startsWith("--");
+						}
+					};
+					
+			static final Predicate<String> allUntilNextOption()
+			{
+				return allUntil(or(shortOption,longOption));
+			}
 		}
 	}
 	
@@ -412,6 +458,6 @@ public class OptionsParser
 					return f.getAnnotation(annotation) != null;
 				}
 			};
-		}
+		}		
 	}
 }

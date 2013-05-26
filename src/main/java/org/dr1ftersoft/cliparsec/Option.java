@@ -11,9 +11,10 @@ import com.google.common.base.Function;
 @Target(ElementType.FIELD)
 public @interface Option
 {
-	public final int MAX_OCCURS_DEFAULT_BEHAVIOUR = -1;
-	public final char NOT_SET = '\00';
-	
+	public final int	MAX_OCCURS_DEFAULT_BEHAVIOUR	= -1;
+	public final int 	ARG_COUNT_DEFAULT_BEHAVIOUR 	= -1;
+	public final char	NOT_SET							= '\00';
+
 	char shortOption() default NOT_SET;
 
 	String longOption() default "";
@@ -27,18 +28,34 @@ public @interface Option
 	 * 
 	 * <em>must not</em> be set to a value less than -1.
 	 * 
-	 * Use {@link Option#MAX_OCCURS_DEFAULT_BEHAVIOUR} to explicitly set this default behaviour. Setting a value > 1 for non-array fields will allow an option to
-	 * be specified multiple times. In such a case, option values will be overwritten.
+	 * Use {@link Option#MAX_OCCURS_DEFAULT_BEHAVIOUR} to explicitly set this default behaviour. Setting a value > 1 for
+	 * non-array fields will allow an option to be specified multiple times. In such a case, option values will be
+	 * overwritten.
 	 * 
 	 * @return the maximum amount of occurrences
 	 */
 	int maxOccurs() default MAX_OCCURS_DEFAULT_BEHAVIOUR;
-	
+
 	/**
-	 * The amount of arguments that follow this option (space-separated). Defaults to 1.
+	 * The amount of arguments that follow this option (space-separated). Defaults to -1
+	 * (one argument for regular options, unlimited for array type options).
+	 * 
 	 * @return
 	 */
-	int argCount() default 1;
-	
-	Class<?extends Function<String,?>> converter() default Converters.Identity.class;
+	int argCount() default ARG_COUNT_DEFAULT_BEHAVIOUR;
+
+	/**
+	 * An optional converter that is invoked for option arguments immediately after they are read from the raw cmd line
+	 * args prior to assigning them to the annotated option field. If not specified, arguments remain strings (and thus
+	 * the annotated field must be of type {@code String} (or {@code boolean} for options w/o args).
+	 * <p>
+	 * Apart from type conversion, any custom preprocessing steps may be performed.
+	 * <p>
+	 * 
+	 * <em>Note: the return type of the converter <b>must</b> be assignment-compatible to the annotated field.</em>
+	 * 
+	 * @return the converter
+	 */
+	Class<? extends Function<String, ?>> converter() default Converters.Identity.class;
+
 }
