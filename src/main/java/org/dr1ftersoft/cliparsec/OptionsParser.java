@@ -20,6 +20,7 @@ import static java.util.Collections.singleton;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -287,7 +288,7 @@ public class OptionsParser
 				int argCount = fieldRegistration.annotation.argCount();
 				if (fieldRegistration.annotation.argCount() == Option.ARG_COUNT_DEFAULT_BEHAVIOUR)
 				{
-					if (!fieldRegistration.field.getType().isArray())
+					if (!isCollectionOrArray(field))
 						argCount = 1;
 					else
 						argCount = from(asList(remainingArgs()))
@@ -320,10 +321,28 @@ public class OptionsParser
 						}
 						continue;
 					}
-					// TODO: also support Collections
+					if (isCollectionType(field))
+					{
+						@SuppressWarnings("unchecked")
+						Collection<Object> collection = (Collection<Object>)field.get(options);
+						if (collection == null) continue;	//TODO: enable initialisation
+						
+						collection.add(value);
+						continue;
+					}
 					field.set(options, value);
 				}
 			}
+		}
+		
+		private boolean isCollectionOrArray(Field f)
+		{
+			return isCollectionType(f) || f.getType().isArray();
+		}
+		
+		private boolean isCollectionType(Field f)
+		{			
+			return Collection.class.isAssignableFrom(f.getType());
 		}
 
 		private class FieldRegistration
@@ -350,7 +369,7 @@ public class OptionsParser
 				switch (maxOccurs)
 				{
 				case Option.MAX_OCCURS_DEFAULT_BEHAVIOUR:
-					if (field.getType().isArray())
+					if (isCollectionOrArray(field))
 						return true;
 					return occurs < 1;
 				default:

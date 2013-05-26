@@ -49,7 +49,7 @@ public class ArgConvertersTest
 		assertThat(opts.directory, is(dir1));
 		assertThat(opts.file, is(file1));
 	}
-
+	
 	@Test
 	public void missing_file_is_reported_as_error() throws Exception
 	{
