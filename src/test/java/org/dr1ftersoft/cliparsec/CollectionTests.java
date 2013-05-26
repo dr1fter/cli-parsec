@@ -26,6 +26,7 @@ public class CollectionTests
 	private class OptionsWithList
 	{
 		@Option()
-		public List<String> args = newArrayList();
+		public List<String> args = newArrayList();		
+		
 	}
 }

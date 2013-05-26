@@ -51,9 +51,9 @@ public class SubCommandTest
 	private class OptionsWithSubCommandsWithSubCommands
 	{
 		@Option(argCount=1)
-		public String topOption;
+		private String topOption;
 		
 		@Command(name="sub-command")
-		public OptionsWithSubCommands subCommand = new OptionsWithSubCommands();
+		OptionsWithSubCommands subCommand = new OptionsWithSubCommands();
 	}
 }

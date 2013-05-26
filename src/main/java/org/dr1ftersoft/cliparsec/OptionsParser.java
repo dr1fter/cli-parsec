@@ -7,6 +7,7 @@ import static com.google.common.base.Predicates.equalTo;
 import static com.google.common.base.Predicates.notNull;
 import static com.google.common.base.Predicates.or;
 import static com.google.common.collect.FluentIterable.from;
+import static com.google.common.collect.Iterables.concat;
 import static com.google.common.collect.Iterables.transform;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Sets.newHashSet;
@@ -18,8 +19,10 @@ import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.singleton;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -89,13 +92,14 @@ public class OptionsParser
 	 */
 	private Iterable<Field> annotatedFields(Class<?> clazz)
 	{
-		return from(asList(clazz.getFields())).filter(Utils.hasAnnotation(Option.class));
+		return from(Utils.allFieldsAsAccessible(clazz))
+				.filter(Utils.hasAnnotation(Option.class));
 	}
 	
 	private Iterable<CommandRegistration> annotatedCommands(Class<?> clazz)
 	{		
 		return
-				from(asList(clazz.getFields()))
+				from(Utils.allFieldsAsAccessible(clazz))
 				.filter(Utils.hasAnnotation(Command.class))
 				.filter(notNull())
 				.transform(CommandRegistration.createCommandRegistation);		
@@ -467,6 +471,22 @@ public class OptionsParser
 	
 	private static class Utils
 	{
+		private static Iterable<Field> allFieldsAsAccessible(Class<?> clazz)
+		{
+			Function<Field,Field> makeAccessible = Utils.makeAccessible();
+			Iterable<Field> publicFields =
+					from(asList(clazz.getFields()));
+			
+			Iterable<Field> nonpublicFields =
+					from(asList(clazz.getDeclaredFields()))				
+					.filter(Predicates.not(Utils.isPublic))
+					.transform(makeAccessible);
+			//nonpublic fields are both inherited or declared fields of any visiblity
+			// while public fields are only those fields that are public and declared in 'clazz'
+			
+			return concat(publicFields,nonpublicFields);
+		}
+		
 		private static Predicate<Field> hasAnnotation(final Class<? extends Annotation> annotation)
 		{
 			return new Predicate<Field>()
@@ -477,6 +497,29 @@ public class OptionsParser
 					return f.getAnnotation(annotation) != null;
 				}
 			};
-		}		
+		}
+		
+		private static Predicate<Field> isPublic = 
+			new Predicate<Field>()
+			{
+				public boolean apply(Field f)
+				{
+					checkNotNull(f);
+					boolean isPublic = (f.getModifiers() & Modifier.PUBLIC) == Modifier.PUBLIC;
+					return isPublic;
+				}
+			};			
+		
+		private static <T extends AccessibleObject> Function<T,T> makeAccessible()
+		{
+			return new Function<T,T>()
+			{
+				public T apply(T o)
+				{
+					o.setAccessible(true);
+					return o;
+				}
+			};
+		}
 	}
 }
