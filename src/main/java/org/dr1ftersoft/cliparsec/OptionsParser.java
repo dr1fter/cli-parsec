@@ -2,17 +2,22 @@ package org.dr1ftersoft.cliparsec;
 
 import static com.google.common.base.Joiner.on;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Predicates.compose;
+import static com.google.common.base.Predicates.equalTo;
+import static com.google.common.base.Predicates.notNull;
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Iterables.transform;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Sets.newHashSet;
 import static java.lang.String.format;
+import static java.lang.reflect.Array.newInstance;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOf;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.singleton;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Set;
@@ -90,7 +95,7 @@ public class OptionsParser
 		return
 				from(asList(clazz.getFields()))
 				.filter(Utils.hasAnnotation(Command.class))
-				.filter(Predicates.notNull())
+				.filter(notNull())
 				.transform(CommandRegistration.createCommandRegistation);		
 	}
 
@@ -108,7 +113,7 @@ public class OptionsParser
 		/**
 		 * function for usage w/ 'google-collections' - returns a cmd registration's command name.
 		 */
-		public final static Function<CommandRegistration, String>	getCommandName	= 
+		private final static Function<CommandRegistration, String>	getCommandName	= 
 				new Function<CommandRegistration, String>()
 				{
 					public String apply(CommandRegistration commandRegistration)
@@ -117,7 +122,7 @@ public class OptionsParser
 					}
 				};
 				
-		public final static Function<Field,CommandRegistration> createCommandRegistation =
+		private final static Function<Field,CommandRegistration> createCommandRegistation =
 				new Function<Field,CommandRegistration>()
 				{
 					public CommandRegistration apply(Field field)
@@ -170,11 +175,8 @@ public class OptionsParser
 
 			// --> ensure the next arg is not a subcommand (in which case we do not want to continue)
 			String currentRawArg = args[pos];
-			for (CommandRegistration command : subCommands)
-				if (command.annotation.name().equals(currentRawArg))
-					return false;
-
-			return true;
+			return !from(subCommands)
+					.anyMatch(compose(equalTo(currentRawArg), CommandRegistration.getCommandName));
 		}
 
 		public String[] remainingArgs()
@@ -283,17 +285,23 @@ public class OptionsParser
 
 				for (int i = 0; i < fieldRegistration.annotation.argCount(); i++)
 				{
-					String value = consume();
+					String valueStr = consume();
+					Object value = fieldRegistration.converter.apply(valueStr);
 
 					Class<?> fieldType = field.getType();
 					if (fieldType.isArray())
 					{
-						String[] originalValues = (String[]) field.get(options);
+						Object[] originalValues = (Object[]) field.get(options);
 						if (originalValues == null)
-							field.set(options, new String[] { value });
+						{
+							Object newArray = newInstance(fieldType.getComponentType(), 1);
+							Array.set(newArray, 0, valueStr);
+							
+							field.set(options, newArray);
+						}
 						else
 						{
-							String[] newValues = copyOf(originalValues,
+							Object[] newValues = copyOf(originalValues,
 									originalValues.length + 1);
 							newValues[newValues.length - 1] = value;
 							field.set(options, newValues);
@@ -312,12 +320,17 @@ public class OptionsParser
 			public final int	maxOccurs;
 			public int			occurs;
 			public final Option	annotation;
+			public final Function<String,?> converter;
 
 			public FieldRegistration(Field field)
 			{
 				this.field = field;
 				this.annotation = field.getAnnotation(Option.class);
 				this.maxOccurs = annotation.maxOccurs();
+				try
+				{
+					this.converter = annotation.converter().newInstance();
+				}catch(Throwable t){throw new RuntimeException(t); }
 			}
 
 			public boolean hasAllowedOccursLeft()

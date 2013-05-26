@@ -5,6 +5,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import com.google.common.base.Function;
+
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
 public @interface Option
@@ -38,15 +40,5 @@ public @interface Option
 	 */
 	int argCount() default 1;
 	
-	
-	public RequireMode required() default RequireMode.OPTIONAL;
-	
-	public int optionGroup() default -1;
-	
-	public enum RequireMode
-	{
-		OPTIONAL, REQUIRED, REQUIRED_MEMBER_OF_OPTIONAL_GROUP
-	}
-	
-	
+	Class<?extends Function<String,?>> converter() default Converters.Identity.class;
 }
