@@ -17,6 +17,7 @@ import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOf;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.singleton;
+import static org.dr1ftersoft.cliparsec.ReflectionUtils.tryToCreateInstance;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AccessibleObject;
@@ -32,10 +33,29 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 
+/**
+ * 
+ * @author dr1fter
+ */
 public class OptionsParser
 {
+	/**
+	 * parses the given command line arguments based on the command line interface definition derived from
+	 * the given options object. The command line arguments are written to the given options object 
+	 * (replacing any previously set values).
+	 *
+	 * 
+	 * @param options the options object, not <code>null</code>
+	 * @param rawArgs the command line arguments, not <code>null</code>
+	 * @return the same options object that was passed in containing the parsed args
+	 *  
+	 * @throws Exception in case any parsing error occurred
+	 */
 	public <T> T parse(T options, String... rawArgs) throws Exception
 	{
+		checkNotNull(options);
+		checkNotNull(rawArgs);
+		
 		Class<?> clazz = options.getClass();
 		Iterable<Field> fields = annotatedFields(clazz);
 		Iterable<CommandRegistration> commands = annotatedCommands(clazz);
@@ -55,6 +75,7 @@ public class OptionsParser
 		// parse sub command if such a command exists.
 		CommandRegistration subCommand = determineSubCommand_orFail(
 				remainder[0], commands);
+		initialiseSubCommand_ifRequired(subCommand,options);
 
 		parse(subCommand.field.get(options), tail(remainder));
 
@@ -64,6 +85,26 @@ public class OptionsParser
 	private String[] tail(String[] args)
 	{
 		return copyOfRange(args, 1, args.length);
+	}
+	
+	private <T> void initialiseSubCommand_ifRequired(CommandRegistration subCommand, T options)
+	{
+		Field commandField = subCommand.field;
+		commandField.setAccessible(true);
+		
+		try
+		{
+			Field declaredField = options.getClass().getDeclaredField(commandField.getName());
+			if(declaredField.isAccessible())
+				options.getClass().getField(commandField.getName());
+			declaredField.setAccessible(true);
+			
+			if (commandField.get(options) != null) return; //was initialised - keep existing
+			Object subCommandObject = tryToCreateInstance(commandField.getType(),options);
+			commandField.set(options, subCommandObject);
+		}
+		catch(Exception e){ /*ignore*/ }
+		
 	}
 
 	private CommandRegistration determineSubCommand_orFail(String rawCmdArg,

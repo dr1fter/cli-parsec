@@ -2,7 +2,8 @@ package org.dr1ftersoft.cliparsec;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.*;
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertThat;
 
 import org.junit.Test;
 
@@ -22,6 +23,20 @@ public class SubCommandTest
 	}
 	
 	@Test
+	public void subCommandOptions_should_be_parsed_if_multiple_subcommands_exist() throws Exception
+	{
+		OptionsWithSubCommands opts = new OptionsWithSubCommands();
+		
+		examinee.parse(opts, "--option1", "command2", "--subOption1");
+		
+		assertThat(opts.option1, is(true));
+		
+		assertThat(opts.subCommand2.subOption1, is(true));
+		assertThat(opts.subCommand, is(nullValue()));
+		
+	}
+	
+	@Test
 	public void subCommandOptions_with_nested_subcommands_should_be_parsed() throws Exception
 	{
 		OptionsWithSubCommandsWithSubCommands opts = new OptionsWithSubCommandsWithSubCommands();
@@ -33,13 +48,15 @@ public class SubCommandTest
 		assertThat(opts.subCommand.subCommand.subOption1, is(true));
 	}
 	
-	private class OptionsWithSubCommands
+	private static class OptionsWithSubCommands 
 	{
 		@Option(argCount=0)
 		public boolean option1;
 		
 		@Command(name="command")
-		public SubCommand subCommand = new SubCommand();
+		public SubCommand subCommand;
+		@Command(name="command2")
+		public SubCommand subCommand2;
 		
 		public class SubCommand
 		{
@@ -54,6 +71,6 @@ public class SubCommandTest
 		private String topOption;
 		
 		@Command(name="sub-command")
-		OptionsWithSubCommands subCommand = new OptionsWithSubCommands();
+		OptionsWithSubCommands subCommand;
 	}
 }

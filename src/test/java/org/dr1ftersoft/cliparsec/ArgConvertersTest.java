@@ -41,6 +41,7 @@ public class ArgConvertersTest
 		OptionsWithFiles opts = new OptionsWithFiles();
 
 		File fileOrDir = new File("some/valid/path");
+		
 		examinee.parse(opts, "--option1", "opt1", "-1", "some/valid/path",
 				"-2", dir1.getAbsolutePath(), "-3", file1.getAbsolutePath());
 
