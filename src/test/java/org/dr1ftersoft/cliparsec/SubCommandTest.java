@@ -48,15 +48,16 @@ public class SubCommandTest
 		assertThat(opts.subCommand.subCommand.subOption1, is(true));
 	}
 	
+	
 	private static class OptionsWithSubCommands 
 	{
 		@Option(argCount=0)
-		public boolean option1;
+		private boolean option1;
 		
 		@Command(name="command")
-		public SubCommand subCommand;
+		protected SubCommand subCommand;
 		@Command(name="command2")
-		public SubCommand subCommand2;
+		SubCommand subCommand2;
 		
 		public class SubCommand
 		{

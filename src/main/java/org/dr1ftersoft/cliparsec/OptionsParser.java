@@ -7,7 +7,6 @@ import static com.google.common.base.Predicates.equalTo;
 import static com.google.common.base.Predicates.notNull;
 import static com.google.common.base.Predicates.or;
 import static com.google.common.collect.FluentIterable.from;
-import static com.google.common.collect.Iterables.concat;
 import static com.google.common.collect.Iterables.transform;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Sets.newHashSet;
@@ -17,13 +16,12 @@ import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOf;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.singleton;
+import static org.dr1ftersoft.cliparsec.ReflectionUtils.allFieldsAsAccessible;
+import static org.dr1ftersoft.cliparsec.ReflectionUtils.hasAnnotation;
 import static org.dr1ftersoft.cliparsec.ReflectionUtils.tryToCreateInstance;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -51,7 +49,7 @@ public class OptionsParser
 	 *  
 	 * @throws Exception in case any parsing error occurred
 	 */
-	public <T> T parse(T options, String... rawArgs) throws Exception
+	public <T> ParsingResult<T> parse(T options, String... rawArgs) throws Exception
 	{
 		checkNotNull(options);
 		checkNotNull(rawArgs);
@@ -69,8 +67,8 @@ public class OptionsParser
 		}
 
 		String[] remainder = ctx.remainingArgs();
-		if (remainder.length == 0)
-			return options;
+		if (remainder.length == 0 || ctx.state == ParsingCtx.ParsingState.OPERANDS)
+			return new ParsingResultImpl<T>(options, remainder);
 
 		// parse sub command if such a command exists.
 		CommandRegistration subCommand = determineSubCommand_orFail(
@@ -79,7 +77,7 @@ public class OptionsParser
 
 		parse(subCommand.field.get(options), tail(remainder));
 
-		return options;
+		return new ParsingResultImpl<T>(options, remainder);
 	}
 
 	private String[] tail(String[] args)
@@ -133,15 +131,15 @@ public class OptionsParser
 	 */
 	private Iterable<Field> annotatedFields(Class<?> clazz)
 	{
-		return from(Utils.allFieldsAsAccessible(clazz))
-				.filter(Utils.hasAnnotation(Option.class));
+		return from(allFieldsAsAccessible(clazz))
+				.filter(hasAnnotation(Option.class));
 	}
 	
 	private Iterable<CommandRegistration> annotatedCommands(Class<?> clazz)
 	{		
 		return
-				from(Utils.allFieldsAsAccessible(clazz))
-				.filter(Utils.hasAnnotation(Command.class))
+				from(allFieldsAsAccessible(clazz))
+				.filter(hasAnnotation(Command.class))
 				.filter(notNull())
 				.transform(CommandRegistration.createCommandRegistation);		
 	}
@@ -186,7 +184,13 @@ public class OptionsParser
 			return Predicates.compose(Predicates.equalTo(name), getCommandName);			
 		}
 	}
-
+	
+	/**
+	 * the delimiter character sequence that may optionally be specified to mark the end of options.
+	 * any arguments that occur after this separator are treated as operands which are to be passed
+	 * without any further modification.
+	 */
+	private static final String	OPTION_OPERAND_DELIMITER	= "--";
 	private static class ParsingCtx
 	{
 		private final Set<FieldRegistration>		allFields;
@@ -194,6 +198,7 @@ public class OptionsParser
 		private Iterable<FieldRegistration>			currentFields	= null;
 		private String[]							args;
 		private int									pos				= 0;
+		private ParsingState						state			= ParsingState.OPTIONS;
 
 		private final Iterable<CommandRegistration>	subCommands;
 
@@ -216,12 +221,19 @@ public class OptionsParser
 		 */
 		public boolean hasNext()
 		{
+			if (state == ParsingState.OPERANDS) return false;
+			
 			if (pos >= args.length)
 				return false;
 			// we have at least one more arg
 
+			String currentRawArg = peek();
+			
+			//if delimiter sequence (--) is reached, any following args are not to be parsed
+			if (currentRawArg.equals(OPTION_OPERAND_DELIMITER))
+				return (state= ParsingState.OPERANDS)==null&consume()!=null;
+			
 			// --> ensure the next arg is not a subcommand (in which case we do not want to continue)
-			String currentRawArg = args[pos];
 			return !from(subCommands)
 					.anyMatch(compose(equalTo(currentRawArg), CommandRegistration.getCommandName));
 		}
@@ -235,12 +247,17 @@ public class OptionsParser
 		{
 			return args[pos++];
 		}
+		
+		private String peek()
+		{
+			return args[pos];
+		}
 
 		private Iterable<FieldRegistration> determineFields(String rawArg)
 		{
 			checkNotNull(rawArg);
 			
-			boolean longArg = rawArg.startsWith("--");
+			boolean longArg = rawArg.startsWith(OPTION_OPERAND_DELIMITER);
 			boolean shortArg = !longArg && rawArg.startsWith("-");
 
 			if (!(longArg | shortArg))
@@ -390,6 +407,11 @@ public class OptionsParser
 			return Collection.class.isAssignableFrom(f.getType());
 		}
 
+		private enum ParsingState
+		{
+			OPTIONS, OPERANDS
+		}
+		
 		private class FieldRegistration
 		{
 			public final Field	field;
@@ -499,7 +521,7 @@ public class OptionsParser
 					{
 						public boolean apply(String arg)
 						{
-							return arg.startsWith("--");
+							return arg.startsWith(OPTION_OPERAND_DELIMITER);
 						}
 					};
 					
@@ -510,57 +532,4 @@ public class OptionsParser
 		}
 	}
 	
-	private static class Utils
-	{
-		private static Iterable<Field> allFieldsAsAccessible(Class<?> clazz)
-		{
-			Function<Field,Field> makeAccessible = Utils.makeAccessible();
-			Iterable<Field> publicFields =
-					from(asList(clazz.getFields()));
-			
-			Iterable<Field> nonpublicFields =
-					from(asList(clazz.getDeclaredFields()))				
-					.filter(Predicates.not(Utils.isPublic))
-					.transform(makeAccessible);
-			//nonpublic fields are both inherited or declared fields of any visiblity
-			// while public fields are only those fields that are public and declared in 'clazz'
-			
-			return concat(publicFields,nonpublicFields);
-		}
-		
-		private static Predicate<Field> hasAnnotation(final Class<? extends Annotation> annotation)
-		{
-			return new Predicate<Field>()
-			{
-				public boolean apply(Field f)
-				{
-					checkNotNull(f);
-					return f.getAnnotation(annotation) != null;
-				}
-			};
-		}
-		
-		private static Predicate<Field> isPublic = 
-			new Predicate<Field>()
-			{
-				public boolean apply(Field f)
-				{
-					checkNotNull(f);
-					boolean isPublic = (f.getModifiers() & Modifier.PUBLIC) == Modifier.PUBLIC;
-					return isPublic;
-				}
-			};			
-		
-		private static <T extends AccessibleObject> Function<T,T> makeAccessible()
-		{
-			return new Function<T,T>()
-			{
-				public T apply(T o)
-				{
-					o.setAccessible(true);
-					return o;
-				}
-			};
-		}
-	}
 }

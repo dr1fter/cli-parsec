@@ -3,6 +3,7 @@ package org.dr1ftersoft.cliparsec;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import org.junit.Test;
@@ -47,6 +48,19 @@ public class OptionsParserTest
 		assertThat(opts.option3, is(true));
 		assertThat(opts.option4, is(false));
 	}	
+	
+	@Test
+	public void parameters_after_operand_delimiter_should_not_be_parsed() throws Exception
+	{
+		OptionsWithArgs opts = new OptionsWithArgs();
+		
+		ParsingResult<OptionsWithArgs> operands = examinee.parse(opts, "-o", "option1", "--", "-2", "should", "--not.be", "-@parsed");
+		
+		
+		assertThat(opts.option1, is("option1"));
+		assertThat(opts.option2, is(nullValue()));
+		assertThat(operands.operands(),is(new String[]{"-2", "should", "--not.be", "-@parsed"}));
+	}
 	
 	private static class OptionsWithoutArgs
 	{
