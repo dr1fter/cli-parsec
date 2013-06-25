@@ -6,6 +6,7 @@ import static com.google.common.base.Predicates.compose;
 import static com.google.common.base.Predicates.equalTo;
 import static com.google.common.base.Predicates.notNull;
 import static com.google.common.base.Predicates.or;
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Iterables.transform;
 import static com.google.common.collect.Lists.newArrayList;
@@ -15,17 +16,24 @@ import static java.lang.reflect.Array.newInstance;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOf;
 import static java.util.Arrays.copyOfRange;
+import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
+import static org.dr1ftersoft.cliparsec.ParsingResult.Status.HELP;
+import static org.dr1ftersoft.cliparsec.ParsingResult.Status.SUCCESS;
 import static org.dr1ftersoft.cliparsec.ReflectionUtils.allFieldsAsAccessible;
 import static org.dr1ftersoft.cliparsec.ReflectionUtils.hasAnnotation;
 import static org.dr1ftersoft.cliparsec.ReflectionUtils.tryToCreateInstance;
 
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import com.google.common.annotations.Beta;
+import com.google.common.base.CharMatcher;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
@@ -37,6 +45,17 @@ import com.google.common.base.Predicates;
  */
 public class OptionsParser
 {
+	private final OutputStream out;
+	
+	public OptionsParser()
+	{		this(System.out);
+	}
+	
+	public OptionsParser(OutputStream outStream)
+	{
+		this.out = checkNotNull(outStream);
+	}
+	
 	/**
 	 * parses the given command line arguments based on the command line interface definition derived from
 	 * the given options object. The command line arguments are written to the given options object 
@@ -55,20 +74,32 @@ public class OptionsParser
 		checkNotNull(rawArgs);
 		
 		Class<?> clazz = options.getClass();
-		Iterable<Field> fields = annotatedFields(clazz);
+		Iterable<Field> optionFields = annotatedOptionFields(clazz);
+		Iterable<Field> helpOptionFields = annotatedHelpOptionFields(clazz);
+		
 		Iterable<CommandRegistration> commands = annotatedCommands(clazz);
 
-		ParsingCtx ctx = new ParsingCtx(rawArgs, fields, commands);
-
+		ParsingCtx ctx = new ParsingCtx(rawArgs, optionFields, helpOptionFields, commands);
+		
 		for (; ctx.hasNext();)
 		{
 			ctx.determineAndConsumeNextFields();
 			ctx.setOrAppendToField(options);
 		}
-
 		String[] remainder = ctx.remainingArgs();
+		
+		//display help and exit if help option was specified or there was no arg at all
+		if(ctx.helpOption() && remainder.length == 0 
+				|| (rawArgs.length == 0 && helpOptionFields.iterator().hasNext()))
+		{
+			OutputStreamWriter osw = new OutputStreamWriter(out);
+			osw.write(HelpFormatter.formatHelp(ctx));
+			osw.flush();
+			return new ParsingResultImpl<T>(options,HELP,remainder);
+		}
+
 		if (remainder.length == 0 || ctx.state == ParsingCtx.ParsingState.OPERANDS)
-			return new ParsingResultImpl<T>(options, remainder);
+			return new ParsingResultImpl<T>(options,SUCCESS, remainder);
 
 		// parse sub command if such a command exists.
 		CommandRegistration subCommand = determineSubCommand_orFail(
@@ -77,7 +108,7 @@ public class OptionsParser
 
 		parse(subCommand.field.get(options), tail(remainder));
 
-		return new ParsingResultImpl<T>(options, remainder);
+		return new ParsingResultImpl<T>(options,SUCCESS, remainder);
 	}
 
 	private String[] tail(String[] args)
@@ -123,16 +154,22 @@ public class OptionsParser
 	}
 
 	/**
-	 * determines and returns all fields from the given class that are annotated with the GlobalOptions annotation
+	 * determines and returns all fields from the given class that are annotated with the Options annotation
 	 * 
 	 * @param clazz
 	 *            not <code>null</code>
 	 * @return never <code>null</code>
 	 */
-	private Iterable<Field> annotatedFields(Class<?> clazz)
+	private Iterable<Field> annotatedOptionFields(Class<?> clazz)
 	{
 		return from(allFieldsAsAccessible(clazz))
-				.filter(hasAnnotation(Option.class));
+				.filter(hasAnnotation(Option.class));				
+	}
+	
+	private Iterable<Field> annotatedHelpOptionFields(Class<?> clazz)
+	{
+		return from(allFieldsAsAccessible(clazz))
+				.filter(hasAnnotation(HelpOption.class));
 	}
 	
 	private Iterable<CommandRegistration> annotatedCommands(Class<?> clazz)
@@ -147,7 +184,8 @@ public class OptionsParser
 	private static class CommandRegistration
 	{
 		public final Field		field;
-		public final Command	annotation;
+		public final Command	annotation;	//TODO: implement a type 'EvaluatedCommand' that wraps interpreting 
+											//the annotation (calculate effective argCount etc.)
 
 		public CommandRegistration(Field field, Command annotation)
 		{
@@ -183,6 +221,7 @@ public class OptionsParser
 		{
 			return Predicates.compose(Predicates.equalTo(name), getCommandName);			
 		}
+		
 	}
 	
 	/**
@@ -191,24 +230,33 @@ public class OptionsParser
 	 * without any further modification.
 	 */
 	private static final String	OPTION_OPERAND_DELIMITER	= "--";
+	private static final String	DASH	= "-";
+	private static final String DDASH	= DASH + DASH;
+	
 	private static class ParsingCtx
 	{
-		private final Set<FieldRegistration>		allFields;
+
+		private final Set<FieldRegistration>		allOptionFields;
+		private final Set<HelpOptionFieldRegistration>	helpOptionFields;
 
 		private Iterable<FieldRegistration>			currentFields	= null;
 		private String[]							args;
 		private int									pos				= 0;
 		private ParsingState						state			= ParsingState.OPTIONS;
+		private boolean 							helpOption 		= false;
 
 		private final Iterable<CommandRegistration>	subCommands;
 
-		public ParsingCtx(String[] args, Iterable<Field> fields,
+		public ParsingCtx(String[] args, Iterable<Field> optionFields, Iterable<Field> helpOptionFields,
 				Iterable<CommandRegistration> subCommands)
 		{
 			this.args = args;
-			this.allFields = newHashSet();
-			for (Field f : fields)
-				this.allFields.add(new FieldRegistration(f));
+			this.allOptionFields = newHashSet();
+			for (Field f : optionFields)
+				this.allOptionFields.add(new FieldRegistration(f));
+			this.helpOptionFields = newHashSet();
+			for(Field f : helpOptionFields)
+				this.helpOptionFields.add(new HelpOptionFieldRegistration(f));
 			this.subCommands = subCommands;
 		}
 
@@ -237,6 +285,11 @@ public class OptionsParser
 			return !from(subCommands)
 					.anyMatch(compose(equalTo(currentRawArg), CommandRegistration.getCommandName));
 		}
+		
+		public boolean helpOption()
+		{
+			return helpOption;
+		}
 
 		public String[] remainingArgs()
 		{
@@ -253,26 +306,26 @@ public class OptionsParser
 			return args[pos];
 		}
 
-		private Iterable<FieldRegistration> determineFields(String rawArg)
+		private Iterable<FieldRegistration> determineFields(Arg arg)
 		{
-			checkNotNull(rawArg);
+			checkNotNull(arg);
 			
-			boolean longArg = rawArg.startsWith(OPTION_OPERAND_DELIMITER);
-			boolean shortArg = !longArg && rawArg.startsWith("-");
+			boolean longArg = arg.longOption;
+			boolean shortArg = arg.shortOption;
 
 			if (!(longArg | shortArg))
 				throw new RuntimeException(
 						format("not a valid token: '%s'"
 								+ " - expected a long or short option (prefixed with -/--).",
-								rawArg));
-			String argName = rawArg.replaceFirst("^(--|-)", ""); // rm leading -/--
+								arg.rawArg));
+			String argName = arg.argName;
 
 			if (shortArg)
 				return _determineShortOptionField(argName);
 
 			// we are handling a long option
 
-			for (FieldRegistration fr : allFields)
+			for (FieldRegistration fr : allOptionFields)
 			{
 				String optionStr = Utils.longOption(fr);
 				if (argName.equals(optionStr))
@@ -294,7 +347,7 @@ public class OptionsParser
 			// multiple short options may be specified - iterable over all chars:
 			for (char shortOptionChar : argWithoutPrefix.toCharArray())
 			{
-				for (FieldRegistration fr : allFields)
+				for (FieldRegistration fr : allOptionFields)
 				{
 					Character optionChar = Utils.shortOption(fr);
 					if (optionChar == null
@@ -309,7 +362,15 @@ public class OptionsParser
 		public Iterable<FieldRegistration> determineAndConsumeNextFields()
 		{
 			String rawArg = consume();
-			Iterable<FieldRegistration> fields = determineFields(rawArg);
+			Arg arg = new Arg(rawArg);
+			if(isHelpOption(arg))
+			{
+				this.state = ParsingState.HELP;
+				this.helpOption = true;
+				//help options do not have arguments by definition. --> return early.
+				return (currentFields = emptySet()); 
+			}
+			Iterable<FieldRegistration> fields = determineFields(arg);
 
 			// TODO: state which tokens were expected
 			if (fields == null)
@@ -341,22 +402,13 @@ public class OptionsParser
 				Field field = fieldRegistration.field;
 				fieldRegistration.occurs++;
 
-				if (fieldRegistration.annotation.argCount() == 0)
+				if (fieldRegistration.argCount() == 0)
 				{ // option w/o args
 					field.set(options, true);
 					continue;
 				}
 
-				int argCount = fieldRegistration.annotation.argCount();
-				if (fieldRegistration.annotation.argCount() == Option.ARG_COUNT_DEFAULT_BEHAVIOUR)
-				{
-					if (!isCollectionOrArray(field))
-						argCount = 1;
-					else
-						argCount = from(asList(remainingArgs()))
-									.filter(Utils.allUntilNextOption())
-									.size();
-				}
+				int argCount = fieldRegistration.argCount();
 				
 				for (int i = 0; i < argCount; i++)
 				{
@@ -397,6 +449,22 @@ public class OptionsParser
 			}
 		}
 		
+		private boolean isHelpOption(Arg arg)
+		{
+			checkNotNull(arg);
+			
+			if(helpOptionFields.size() == 0) return false;
+			
+			if(arg.longOption || !arg.shortOption)
+				return from(helpOptionFields).transform(Utils.toLongOption())
+						.anyMatch(equalTo(arg.argName));
+			if(arg.shortOption)
+				return from(helpOptionFields).transform(Utils.toShortOption())
+						.anyMatch(CharMatcher.anyOf(arg.argName));
+			
+			throw new IllegalStateException("can not happen.");
+		}
+		
 		private boolean isCollectionOrArray(Field f)
 		{
 			return isCollectionType(f) || f.getType().isArray();
@@ -409,7 +477,7 @@ public class OptionsParser
 
 		private enum ParsingState
 		{
-			OPTIONS, OPERANDS
+			OPTIONS, OPERANDS, HELP
 		}
 		
 		private class FieldRegistration
@@ -422,8 +490,8 @@ public class OptionsParser
 
 			public FieldRegistration(Field field)
 			{
-				this.field = field;
-				this.annotation = field.getAnnotation(Option.class);
+				this.field = checkNotNull(field);
+				this.annotation = checkNotNull(field.getAnnotation(Option.class));
 				this.maxOccurs = annotation.maxOccurs();
 				try
 				{
@@ -443,7 +511,63 @@ public class OptionsParser
 					return occurs < maxOccurs;
 				}
 			}
-
+			
+			public boolean hasArgs()
+			{
+				return argCount() > 0;
+			}
+			
+			/**
+			 * determines and returns the amount of arguments the registered option has in the context of the
+			 * actual arguments that are currently being parsed(*).
+			 * <p>
+			 * This amount is determined using the following approach (descending precedence):
+			 * 
+			 * <ul> 
+			 * <li>if the option has a user-set amount of arguments, this this value is used</li>
+			 * <li>if the option does not have a user-set amount of arguments, the default behaviour applies</li>
+			 * <li>boolean fields have by default no option</li>
+			 * <li>non-boolean, non-collection, non-array typed fields have exactly one option</li>
+			 * <li>for collection or array-typed fields every non-option argument immediately following the option
+			 *     is assumed to be argument of said option</li> 
+			 * </ul> 
+			 * <p>
+			 * (*) for collection- or array-typed option fields, this is a positive integer value 
+			 * 
+			 * @return the amount of arguments this option has, interpreted in the context of the actual args,
+			 * 	always >=0
+			 */
+			public int argCount()
+			{
+				if (annotation.argCount() != Option.MAX_OCCURS_DEFAULT_BEHAVIOUR) return annotation.argCount();
+				//default behaviour depends on annotated field's type
+				
+				if(isCollectionOrArray(field))	//read until next option
+					return from(asList(remainingArgs()))
+					.filter(Utils.allUntilNextOption())
+					.size();
+				
+				if(field.getType() == Boolean.TYPE) return 0;	//flags do not have options
+				
+				return 1;	//one arg by default for non-array, non-collection, non-boolean fields
+			}
+			
+			/**
+			 * determines and returns the amount of parameters the option field expects. The returned value is 
+			 * (as opposed to {@link #argCount()} insensitive of the actual arguments. I.e. for an arbitrary
+			 * amount of arguments, -1 is returned.
+			 * 
+			 * @return the amount of formal arguments
+			 */
+			public int formalArgCount()
+			{
+				if (annotation.argCount() != Option.MAX_OCCURS_DEFAULT_BEHAVIOUR
+						|| !isCollectionOrArray(field))
+					return argCount();
+				
+				return annotation.argCount();
+			}
+			
 			public String describeAllowedOccurences()
 			{
 				switch (maxOccurs)
@@ -458,6 +582,49 @@ public class OptionsParser
 			}
 		}
 
+		private class HelpOptionFieldRegistration
+		{
+			private final Field field;
+			private final HelpOption annotation;
+			
+			public HelpOptionFieldRegistration(Field field)
+			{
+				this.field = checkNotNull(field);
+				this.annotation = checkNotNull(field.getAnnotation(HelpOption.class));
+			}
+			
+			public Character shortOption()
+			{
+				return annotation.shortOption();
+			}
+			
+			public String longOption()
+			{
+				if (!isNullOrEmpty(annotation.longOption())) return annotation.longOption();
+				return field.getName(); //fallback to field name
+			}
+		}
+		
+		private class Arg
+		{
+			private final String rawArg;
+			private final boolean shortOption;
+			private final boolean longOption;
+			private final String argName;
+			
+			public Arg(String rawArg)
+			{
+				this.rawArg = checkNotNull(rawArg);
+				
+				this.longOption = rawArg.startsWith(DDASH);
+				this.shortOption = !longOption && rawArg.startsWith(DASH);
+				
+				this.argName = rawArg.replaceFirst(format("^(%s|%s)",DDASH, DASH), ""); // rm leading -/--
+			}
+			
+			
+		}
+		
 		private static class Utils
 		{
 			/**
@@ -482,18 +649,68 @@ public class OptionsParser
 
 				return null;
 			}
+			
+			static final Character shortOption(HelpOptionFieldRegistration fr)
+			{
+				if (fr == null)
+					throw new NullPointerException();
+				
+				if (fr.annotation.shortOption() != Option.NOT_SET)
+					return fr.annotation.shortOption();
+				
+				// fallback to field name:
+				String fieldName = fr.field.getName();
+				
+				if (fieldName.length() == 1)
+					return fieldName.toCharArray()[0];
+				
+				return null;
+			}
 
 			static final String longOption(FieldRegistration fr)
 			{
 				if (fr == null)
 					throw new NullPointerException();
-
-				if (fr.annotation.longOption() != null
-						&& !fr.annotation.longOption().isEmpty())
+				
+				if (!isNullOrEmpty(fr.annotation.longOption()))
 					return fr.annotation.longOption();
 
 				// fallback to field name:
 				return fr.field.getName();
+			}
+			
+			static final String longOption(HelpOptionFieldRegistration fr)
+			{
+				if (fr == null)
+					throw new NullPointerException();
+				
+				if (!isNullOrEmpty(fr.annotation.longOption()))
+					return fr.annotation.longOption();
+				
+				// fallback to field name:
+				return fr.field.getName();
+			}
+			
+			static final Function<HelpOptionFieldRegistration,String> toLongOption()
+			{
+				return new Function<HelpOptionFieldRegistration,String>()
+				{
+					public String apply(HelpOptionFieldRegistration input)
+					{
+						return longOption(input);
+					}
+				};
+			}
+			
+			static final Function<HelpOptionFieldRegistration,Character> toShortOption()
+			{
+				return new Function<HelpOptionFieldRegistration,Character>()
+						{
+					public Character apply(HelpOptionFieldRegistration input)
+					{
+						return shortOption(input);
+					}
+						};
 			}
 			
 			
@@ -514,7 +731,7 @@ public class OptionsParser
 					{
 						public boolean apply(String arg)
 						{
-							return arg.startsWith("-");
+							return arg.startsWith(DASH);
 						}
 					};
 			static final Predicate<String> longOption = new Predicate<String>()
@@ -532,4 +749,48 @@ public class OptionsParser
 		}
 	}
 	
+	/**
+	 * don't use.
+	 * 
+	 * @author dr1fter
+	 *
+	 */
+	@Beta
+	static class HelpFormatter
+	{
+		@Beta
+		public static String formatHelp(ParsingCtx ctx)
+		{
+			StringBuilder s = new StringBuilder();
+			
+			for(org.dr1ftersoft.cliparsec.OptionsParser.ParsingCtx.FieldRegistration f : ctx.allOptionFields)
+			{
+				Character shortOption = ParsingCtx.Utils.shortOption(f);
+				String longOption = ParsingCtx.Utils.longOption(f);
+				
+				String shortText = shortOption != null? DASH + shortOption : null;
+				String longText = longOption != null? DDASH + longOption : null;
+				String beginning =  on('|').skipNulls().join(shortText,longText);
+				
+				String argList = null;
+				
+				if (f.hasArgs())
+				{
+					if(f.formalArgCount() == -1)
+						argList = "<list>";
+					else
+					{
+						List<String> args = newArrayList();
+						for(int i = 0; i < f.argCount(); )
+							args.add("arg" + i++);
+						argList = on(' ').join(args);
+					}
+				}
+				
+				String result = "[" + on(' ').skipNulls().join(beginning,argList) + "]\n";
+				s.append(result);
+			}
+			return s.toString();
+		}
+	}
 }

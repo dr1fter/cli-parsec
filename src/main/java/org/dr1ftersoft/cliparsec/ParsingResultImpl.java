@@ -6,18 +6,26 @@ class ParsingResultImpl<T> implements ParsingResult<T>
 {
 	private final T options;
 	private final String[] operands;
+	private final Status status;
 	
 
-	public ParsingResultImpl(T options, String[] operands)
+	public ParsingResultImpl(T options, Status status, String[] operands)
 	{
 		this.options = checkNotNull(options);
 		this.operands = checkNotNull(operands);
+		this.status = checkNotNull(status);
 	}
 
 	@Override
 	public <X> T options()
 	{
 		return options;
+	}
+	
+	@Override
+	public org.dr1ftersoft.cliparsec.ParsingResult.Status status()
+	{
+		return status;
 	}
 
 	@Override

@@ -23,7 +23,7 @@ public @interface Option
 	 * The maximum amount of occurrences of this option. If not specified, the default behaviour is
 	 * <ul>
 	 * <li>1 - if the annotated field is a simple string</li>
-	 * <li>unlimited - if the annotated field is an array of string</li>
+	 * <li>unlimited - if the annotated field is an array or collection type</li>
 	 * </ul>
 	 * 
 	 * <em>must not</em> be set to a value less than -1.

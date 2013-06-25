@@ -70,7 +70,7 @@ public class OptionsParserTest
 		@Option(shortOption='2', argCount=0)
 		public boolean option2;
 		
-		@Option(shortOption='3', argCount=0)
+		@Option(shortOption='3')
 		public boolean option3;
 		
 		@Option(shortOption='4', argCount=0)
