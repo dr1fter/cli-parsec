@@ -14,12 +14,12 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import de.dr1fter.cliparsec.Converters;
-import de.dr1fter.cliparsec.Option;
-import de.dr1fter.cliparsec.OptionsParser;
+import de.dr1fter.cliparsec.CliParser;
+import de.dr1fter.cliparsec.annotations.Option;
 
 public class ArgConvertersTest
 {
-	OptionsParser				examinee	= new OptionsParser();
+	CliParser				examinee	= CliParser.createCliParser();
 
 	@Rule
 	public ExpectedException	thrown		= ExpectedException.none();

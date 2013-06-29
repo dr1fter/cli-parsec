@@ -8,12 +8,12 @@ import java.util.List;
 
 import org.junit.Test;
 
-import de.dr1fter.cliparsec.Option;
-import de.dr1fter.cliparsec.OptionsParser;
+import de.dr1fter.cliparsec.CliParser;
+import de.dr1fter.cliparsec.annotations.Option;
 
 public class CollectionTests
 {
-	OptionsParser examinee = new OptionsParser();
+	CliParser examinee = CliParser.createCliParser();
 	
 	@Test
 	public void args_should_be_assigned_to_list() throws Exception

@@ -8,15 +8,15 @@ import java.io.ByteArrayOutputStream;
 
 import org.junit.Test;
 
-import de.dr1fter.cliparsec.HelpOption;
-import de.dr1fter.cliparsec.Option;
-import de.dr1fter.cliparsec.OptionsParser;
+import de.dr1fter.cliparsec.CliParser;
 import de.dr1fter.cliparsec.ParsingResult;
+import de.dr1fter.cliparsec.annotations.HelpOption;
+import de.dr1fter.cliparsec.annotations.Option;
 
 public class HelpOptionTest
 {
 	ByteArrayOutputStream out = new ByteArrayOutputStream();
-	OptionsParser examinee = new OptionsParser(out);
+	CliParser examinee = CliParser.createCliParser(out);
 	String outputStr(){return out.toString();}
 	
 	@Test

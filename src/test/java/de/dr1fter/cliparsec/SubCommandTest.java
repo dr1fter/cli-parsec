@@ -7,13 +7,13 @@ import static org.junit.Assert.assertThat;
 
 import org.junit.Test;
 
-import de.dr1fter.cliparsec.Command;
-import de.dr1fter.cliparsec.Option;
-import de.dr1fter.cliparsec.OptionsParser;
+import de.dr1fter.cliparsec.CliParser;
+import de.dr1fter.cliparsec.annotations.Command;
+import de.dr1fter.cliparsec.annotations.Option;
 
 public class SubCommandTest
 {
-	OptionsParser	examinee	= new OptionsParser();
+	CliParser	examinee	= CliParser.createCliParser();
 
 	@Test
 	public void subCommandOptions_should_be_parsed() throws Exception

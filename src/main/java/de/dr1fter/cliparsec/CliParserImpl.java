@@ -11,6 +11,7 @@ import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Iterables.transform;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Sets.newHashSet;
+import static de.dr1fter.cliparsec.ArrayUtils.tail;
 import static de.dr1fter.cliparsec.ParsingResult.Status.HELP;
 import static de.dr1fter.cliparsec.ParsingResult.Status.SUCCESS;
 import static de.dr1fter.cliparsec.ReflectionUtils.allFieldsAsAccessible;
@@ -38,22 +39,25 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.collect.Iterables;
+
+import de.dr1fter.cliparsec.annotations.Command;
+import de.dr1fter.cliparsec.annotations.HelpOption;
+import de.dr1fter.cliparsec.annotations.Option;
 
 /**
- * 
+ * this is an internal implementation class.
  * @author dr1fter
  */
-public class OptionsParser
+class CliParserImpl extends CliParser
 {
-	private final OutputStream out;
-	
-	public OptionsParser()
-	{		this(System.out);
+	CliParserImpl()
+	{		super(System.out);
 	}
 	
-	public OptionsParser(OutputStream outStream)
+	CliParserImpl(OutputStream outStream)
 	{
-		this.out = checkNotNull(outStream);
+		super(checkNotNull(outStream));
 	}
 	
 	/**
@@ -111,10 +115,6 @@ public class OptionsParser
 		return new ParsingResultImpl<T>(options,SUCCESS, remainder);
 	}
 
-	private String[] tail(String[] args)
-	{
-		return copyOfRange(args, 1, args.length);
-	}
 	
 	private <T> void initialiseSubCommand_ifRequired(CommandRegistration subCommand, T options)
 	{
@@ -753,7 +753,9 @@ public class OptionsParser
 		{
 			StringBuilder s = new StringBuilder();
 			
-			for(de.dr1fter.cliparsec.OptionsParser.ParsingCtx.FieldRegistration f : ctx.allOptionFields)
+			s.append("Options:\n");
+			//handle options
+			for(de.dr1fter.cliparsec.CliParserImpl.ParsingCtx.FieldRegistration f : ctx.allOptionFields)
 			{
 				Character shortOption = ParsingCtx.Utils.shortOption(f);
 				String longOption = ParsingCtx.Utils.longOption(f);
@@ -780,6 +782,13 @@ public class OptionsParser
 				String result = "[" + on(' ').skipNulls().join(beginning,argList) + "]\n";
 				s.append(result);
 			}
+			
+			//handle commands
+			if (Iterables.size(ctx.subCommands) > 0)
+				s.append("\nsub commands:\n");
+			for(CommandRegistration command : ctx.subCommands)
+				s.append(CommandRegistration.getCommandName.apply(command)).append("\n");
+			
 			return s.toString();
 		}
 	}

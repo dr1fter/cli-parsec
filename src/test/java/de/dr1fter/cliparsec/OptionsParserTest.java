@@ -8,13 +8,13 @@ import static org.junit.Assert.assertThat;
 
 import org.junit.Test;
 
-import de.dr1fter.cliparsec.Option;
-import de.dr1fter.cliparsec.OptionsParser;
+import de.dr1fter.cliparsec.CliParser;
 import de.dr1fter.cliparsec.ParsingResult;
+import de.dr1fter.cliparsec.annotations.Option;
 
 public class OptionsParserTest
 {
-	OptionsParser examinee = new OptionsParser();
+	CliParser examinee = CliParser.createCliParser();
 	
 	@Test
 	public void global_options_with_args_should_be_parsed() throws Exception

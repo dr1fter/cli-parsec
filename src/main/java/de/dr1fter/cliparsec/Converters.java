@@ -11,9 +11,9 @@ import com.google.common.base.Function;
  * @author dr1fter
  *
  */
-class Converters
+public class Converters
 {
-	static class Identity implements Function<String,String>
+	public static class Identity implements Function<String,String>
 	{
 		public String apply(String str)
 		{
@@ -21,7 +21,7 @@ class Converters
 		}
 	}
 	
-	static class FileOrDirectory implements Function<String,File>
+	public static class FileOrDirectory implements Function<String,File>
 	{
 		public File apply(String str)
 		{
@@ -29,7 +29,7 @@ class Converters
 		}
 	}
 	
-	static class FileThatExists implements Function<String,File>
+	public static class FileThatExists implements Function<String,File>
 	{
 		public File apply(String str)
 		{
@@ -39,7 +39,7 @@ class Converters
 		}
 	}
 	
-	static class DirectoryThatExists implements Function<String,File>
+	public static class DirectoryThatExists implements Function<String,File>
 	{
 		public File apply(String str)
 		{
