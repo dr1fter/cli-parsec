@@ -1,4 +1,4 @@
-package org.dr1ftersoft.cliparsec;
+package de.dr1fter.cliparsec;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.FluentIterable.from;

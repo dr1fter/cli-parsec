@@ -1,13 +1,17 @@
-package org.dr1ftersoft.cliparsec;
+package de.dr1fter.cliparsec;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.*;
 import static org.junit.Assert.assertThat;
 
 import java.io.ByteArrayOutputStream;
 
 import org.junit.Test;
+
+import de.dr1fter.cliparsec.HelpOption;
+import de.dr1fter.cliparsec.Option;
+import de.dr1fter.cliparsec.OptionsParser;
+import de.dr1fter.cliparsec.ParsingResult;
 
 public class HelpOptionTest
 {

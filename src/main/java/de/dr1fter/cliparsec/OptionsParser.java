@@ -1,4 +1,4 @@
-package org.dr1ftersoft.cliparsec;
+package de.dr1fter.cliparsec;
 
 import static com.google.common.base.Joiner.on;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -11,6 +11,11 @@ import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Iterables.transform;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Sets.newHashSet;
+import static de.dr1fter.cliparsec.ParsingResult.Status.HELP;
+import static de.dr1fter.cliparsec.ParsingResult.Status.SUCCESS;
+import static de.dr1fter.cliparsec.ReflectionUtils.allFieldsAsAccessible;
+import static de.dr1fter.cliparsec.ReflectionUtils.hasAnnotation;
+import static de.dr1fter.cliparsec.ReflectionUtils.tryToCreateInstance;
 import static java.lang.String.format;
 import static java.lang.reflect.Array.newInstance;
 import static java.util.Arrays.asList;
@@ -18,11 +23,6 @@ import static java.util.Arrays.copyOf;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
-import static org.dr1ftersoft.cliparsec.ParsingResult.Status.HELP;
-import static org.dr1ftersoft.cliparsec.ParsingResult.Status.SUCCESS;
-import static org.dr1ftersoft.cliparsec.ReflectionUtils.allFieldsAsAccessible;
-import static org.dr1ftersoft.cliparsec.ReflectionUtils.hasAnnotation;
-import static org.dr1ftersoft.cliparsec.ReflectionUtils.tryToCreateInstance;
 
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -593,16 +593,6 @@ public class OptionsParser
 				this.annotation = checkNotNull(field.getAnnotation(HelpOption.class));
 			}
 			
-			public Character shortOption()
-			{
-				return annotation.shortOption();
-			}
-			
-			public String longOption()
-			{
-				if (!isNullOrEmpty(annotation.longOption())) return annotation.longOption();
-				return field.getName(); //fallback to field name
-			}
 		}
 		
 		private class Arg
@@ -763,7 +753,7 @@ public class OptionsParser
 		{
 			StringBuilder s = new StringBuilder();
 			
-			for(org.dr1ftersoft.cliparsec.OptionsParser.ParsingCtx.FieldRegistration f : ctx.allOptionFields)
+			for(de.dr1fter.cliparsec.OptionsParser.ParsingCtx.FieldRegistration f : ctx.allOptionFields)
 			{
 				Character shortOption = ParsingCtx.Utils.shortOption(f);
 				String longOption = ParsingCtx.Utils.longOption(f);

@@ -1,4 +1,4 @@
-package org.dr1ftersoft.cliparsec;
+package de.dr1fter.cliparsec;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -12,7 +12,7 @@ import com.google.common.base.Function;
 public @interface Option
 {
 	public final int	MAX_OCCURS_DEFAULT_BEHAVIOUR	= -1;
-	public final int 	ARG_COUNT_DEFAULT_BEHAVIOUR 	= -1;
+	public final int	ARG_COUNT_DEFAULT_BEHAVIOUR		= -1;
 	public final char	NOT_SET							= '\00';
 
 	char shortOption() default NOT_SET;
@@ -37,10 +37,10 @@ public @interface Option
 	int maxOccurs() default MAX_OCCURS_DEFAULT_BEHAVIOUR;
 
 	/**
-	 * The amount of arguments that follow this option (space-separated). Defaults to -1
-	 * (one argument for regular options, unlimited for array type options).
+	 * The amount of arguments that follow this option (space-separated). Defaults to
+	 * {@link #ARG_COUNT_DEFAULT_BEHAVIOUR} (one argument for regular options, unlimited for array type options).
 	 * 
-	 * @return
+	 * @return the configured amount of arguments or {@link #ARG_COUNT_DEFAULT_BEHAVIOUR}
 	 */
 	int argCount() default ARG_COUNT_DEFAULT_BEHAVIOUR;
 

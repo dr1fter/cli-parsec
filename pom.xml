@@ -1,33 +1,56 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
+	<groupId>de.dr1fter</groupId>
+	<artifactId>de.dr1fter.cli-parsec</artifactId>
+	<version>0.1-MS1-SNAPSHOT</version>
+	<packaging>jar</packaging>
 	<name>CLI-Parsec - a declarative CLI-Parser-Framework</name>
-	<groupId>org.dr1ftersoft</groupId>
-	<artifactId>org.dr1ftersoft.cli-parsec</artifactId>
-	<version>0.1</version>
+	<description>
+		CLI-Parsec is a declarative CLI-Parser-Framework for Java. It is based on 
+		annotations and aims to ease defining and parsing command line interfaces.  
+	</description>
 
-	<properties>
-		<jna-version>3.5.2</jna-version>
-	</properties>
+	<licenses>
+		<license>
+			<distribution>repo</distribution>
+			<name>GNU LESSER GENERAL PUBLIC LICENSE (LGPL) Version 3.0</name>
+			<url>http://www.gnu.org/licenses/lgpl-3.0.en.html</url>
+		</license>
+	</licenses>
+	<scm>
+		<url>https://github.com/dr1fter/cli-parsec</url>
+		<connection>scm:git:git://github.com/dr1fter/cli-parsec</connection>
+	</scm>
+	<url>https://github.com/dr1fter/</url>
+
+	<developers>
+		<developer>
+			<email>ccwienk (a t) dr1fter (d o t) de</email>
+			<name>Christian Cwienk</name>
+		</developer>
+	</developers>
 
 	<dependencies>
-
-		<dependency>
-			<groupId>org.hamcrest</groupId>
-			<artifactId>hamcrest-core</artifactId>
-			<version>1.3</version>
-		</dependency>
-		<dependency>
-			<groupId>org.hamcrest</groupId>
-			<artifactId>hamcrest-library</artifactId>
-			<version>1.3</version>
-		</dependency>
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>14.0.1</version>
 		</dependency>
 
+		<!-- test code dependencies -->
+		<dependency>
+			<groupId>org.hamcrest</groupId>
+			<artifactId>hamcrest-core</artifactId>
+			<version>1.3</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.hamcrest</groupId>
+			<artifactId>hamcrest-library</artifactId>
+			<version>1.3</version>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
@@ -35,6 +58,10 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+	
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
 
 	<build>
 		<plugins>
@@ -47,6 +74,54 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 					<target>1.7</target>
 				</configuration>
 			</plugin>
+			<!-- package sources -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>2.2.1</version>
+				<executions>
+					<execution>
+						<id>attach-sources</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- generate javadoc -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>2.9.1</version>
+				<executions>
+					<execution>
+						<id>attach-javadocs</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-release-plugin</artifactId>
+				<version>2.2.2</version>
+				<!-- <configuration>
+					<arguments>-Dgpg.passphrase=${gpg.passphrase}</arguments>
+				</configuration> -->
+			</plugin>
 		</plugins>
 	</build>
+
+	<distributionManagement>
+		<repository>
+			<id>sonatype-snapshot</id>
+			<url>http://oss.sonatype.org/content/repositories/snapshots</url>
+		</repository>
+<!-- 		<repository> -->
+<!-- 			<id>sonatype-release</id> -->
+<!-- 			<url>https://oss.sonatype.org/service/local/stating/deploy/maven2</url>> -->
+<!-- 		</repository> -->
+
+	</distributionManagement>
 </project>

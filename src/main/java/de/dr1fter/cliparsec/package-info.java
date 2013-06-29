@@ -17,4 +17,4 @@
  * toplevel options type and annotate it with the 'Command' annotation.
  * 
  */
-package org.dr1ftersoft.cliparsec;
+package de.dr1fter.cliparsec;

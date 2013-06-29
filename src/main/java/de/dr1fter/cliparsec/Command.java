@@ -1,4 +1,4 @@
-package org.dr1ftersoft.cliparsec;
+package de.dr1fter.cliparsec;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

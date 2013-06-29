@@ -1,4 +1,4 @@
-package org.dr1ftersoft.cliparsec;
+package de.dr1fter.cliparsec;
 
 import static java.util.Arrays.asList;
 import static org.hamcrest.Matchers.contains;
@@ -12,6 +12,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
+
+import de.dr1fter.cliparsec.Converters;
+import de.dr1fter.cliparsec.Option;
+import de.dr1fter.cliparsec.OptionsParser;
 
 public class ArgConvertersTest
 {

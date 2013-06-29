@@ -1,7 +1,7 @@
-package org.dr1ftersoft.cliparsec;
+package de.dr1fter.cliparsec;
 
 import static com.google.common.collect.Iterables.size;
-import static org.dr1ftersoft.cliparsec.ReflectionUtils.isPublic;
+import static de.dr1fter.cliparsec.ReflectionUtils.isPublic;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -9,6 +9,8 @@ import static org.junit.Assert.assertThat;
 import java.lang.reflect.Field;
 
 import org.junit.Test;
+
+import de.dr1fter.cliparsec.ReflectionUtils;
 
 public class ReflectionUtilsTest
 {

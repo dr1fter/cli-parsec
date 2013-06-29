@@ -1,4 +1,4 @@
-package org.dr1ftersoft.cliparsec;
+package de.dr1fter.cliparsec;
 
 
 public interface ParsingResult<T>
@@ -10,14 +10,10 @@ public interface ParsingResult<T>
 	public enum Status { SUCCESS, ERROR, HELP }
 	//TODO: add sub-commands (Stack subcommands or similar)
 	
-	/**
-	 * 
-	 * @return
-	 */
 	//Optional<SelectedSubCommand> subCommands();
-	public interface SelectedSubCommand
-	{
-		<S> S getSubCommand();
-		SelectedSubCommand pop();
-	}
+//	public interface SelectedSubCommand
+//	{
+//		<S> S getSubCommand();
+//		SelectedSubCommand pop();
+//	}
 }

@@ -1,4 +1,4 @@
-package org.dr1ftersoft.cliparsec;
+package de.dr1fter.cliparsec;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -6,6 +6,10 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import org.junit.Test;
+
+import de.dr1fter.cliparsec.Command;
+import de.dr1fter.cliparsec.Option;
+import de.dr1fter.cliparsec.OptionsParser;
 
 public class SubCommandTest
 {

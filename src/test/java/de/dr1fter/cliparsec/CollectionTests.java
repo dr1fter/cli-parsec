@@ -1,4 +1,4 @@
-package org.dr1ftersoft.cliparsec;
+package de.dr1fter.cliparsec;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static org.hamcrest.Matchers.contains;
@@ -7,6 +7,9 @@ import static org.junit.Assert.assertThat;
 import java.util.List;
 
 import org.junit.Test;
+
+import de.dr1fter.cliparsec.Option;
+import de.dr1fter.cliparsec.OptionsParser;
 
 public class CollectionTests
 {

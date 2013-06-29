@@ -1,4 +1,4 @@
-package org.dr1ftersoft.cliparsec;
+package de.dr1fter.cliparsec;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -23,7 +23,7 @@ class ParsingResultImpl<T> implements ParsingResult<T>
 	}
 	
 	@Override
-	public org.dr1ftersoft.cliparsec.ParsingResult.Status status()
+	public de.dr1fter.cliparsec.ParsingResult.Status status()
 	{
 		return status;
 	}
