@@ -4,7 +4,7 @@ package de.dr1fter.cliparsec;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.*;
 
 import org.junit.Test;
 
@@ -41,6 +41,16 @@ public class OptionsParserTest
 	}
 	
 	@Test
+	public void options_with_attached_args_should_be_parsed() throws Exception
+	{
+		OptionsWithArgs opts = new OptionsWithArgs();
+		examinee.parse(opts, "-4=four", "--option=opt1");
+		
+		assertThat(opts.option1, equalTo("opt1"));
+		assertThat(opts.shortOpt4, equalTo("four"));
+	}
+	
+	@Test
 	public void global_options_without_args_should_be_parsed() throws Exception
 	{
 		OptionsWithoutArgs opts = new OptionsWithoutArgs();
@@ -52,6 +62,7 @@ public class OptionsParserTest
 		assertThat(opts.option3, is(true));
 		assertThat(opts.option4, is(false));
 	}	
+	
 	
 	@Test
 	public void parameters_after_operand_delimiter_should_not_be_parsed() throws Exception

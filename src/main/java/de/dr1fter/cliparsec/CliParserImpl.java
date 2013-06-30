@@ -11,6 +11,7 @@ import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Iterables.transform;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Sets.newHashSet;
+import static de.dr1fter.cliparsec.ArrayUtils.insertAfter;
 import static de.dr1fter.cliparsec.ArrayUtils.tail;
 import static de.dr1fter.cliparsec.ParsingResult.Status.HELP;
 import static de.dr1fter.cliparsec.ParsingResult.Status.SUCCESS;
@@ -301,9 +302,26 @@ class CliParserImpl extends CliParser
 			return args[pos++];
 		}
 		
+		
+		
 		private String peek()
 		{
 			return args[pos];
+		}
+
+		/**
+		 * peeks the next argument (which must be an option). If the next arg contains a value separator ('='), then
+		 * the value is split: the current arg is reset to the arg part before the separator, the remainder (without
+		 * the separator) is inserted into the arguments array.
+		 */
+		private void splitArgOnPresentArg()
+		{
+			String currentArg = peek();
+			if(!currentArg.contains("=") || currentArg.startsWith("=")) return;
+			
+			String[] argParts = currentArg.split("=",2);
+			args[pos] = argParts[0];
+			args = insertAfter(args, pos, argParts[1]);
 		}
 
 		private Iterable<FieldRegistration> determineFields(Arg arg)
@@ -319,6 +337,12 @@ class CliParserImpl extends CliParser
 								+ " - expected a long or short option (prefixed with -/--).",
 								arg.rawArg));
 			String argName = arg.argName;
+			if(argName.contains("="))
+			{
+				String[] args = argName.split("=",2);
+				argName = args[0];
+				
+			}
 
 			if (shortArg)
 				return _determineShortOptionField(argName);
@@ -361,6 +385,7 @@ class CliParserImpl extends CliParser
 
 		public Iterable<FieldRegistration> determineAndConsumeNextFields()
 		{
+			splitArgOnPresentArg();
 			String rawArg = consume();
 			Arg arg = new Arg(rawArg);
 			if(isHelpOption(arg))

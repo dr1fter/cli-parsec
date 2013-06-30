@@ -1,8 +1,9 @@
 package de.dr1fter.cliparsec;
 
+import static de.dr1fter.cliparsec.ArrayUtils.insertAfter;
 import static de.dr1fter.cliparsec.ArrayUtils.tail;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.*;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -49,5 +50,25 @@ public class ArrayUtilsTest
 	{
 		thrown.expect(NullPointerException.class);
 		tail(null);
+	}
+	
+	@Test
+	public void insertAfter_should_insert_after_the_specified_position() throws Exception
+	{
+		final Integer[] arr = {1,2,4,5};
+		
+		final Integer[] inserted = insertAfter(arr, 1, 3);
+		
+		assertThat(inserted, is(new Integer[]{1,2,3,4,5}));
+	}
+	
+	@Test
+	public void insertAfter_last_element_should_work() throws Exception
+	{
+		final Integer[] arr = {1,2,3};
+		
+		final Integer[] inserted = insertAfter(arr, 2, 4);
+		
+		assertThat(inserted, is(new Integer[]{1,2,3,4}));
 	}
 }
