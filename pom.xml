@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>de.dr1fter</groupId>
 	<artifactId>de.dr1fter.cli-parsec</artifactId>
-	<version>0-SNAPSHOT</version>
+	<version>0.1-MS2</version>
 	<packaging>jar</packaging>
 	<name>CLI-Parsec - a declarative CLI-Parser-Framework</name>
 	<description>
