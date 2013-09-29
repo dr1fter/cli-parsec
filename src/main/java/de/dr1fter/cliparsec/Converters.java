@@ -5,47 +5,57 @@ import java.io.File;
 import com.google.common.base.Function;
 
 /**
- * Converters that can be attached to Option specifications that in turn perform type conversions from 
- * the original string values to other types (e.g. file, directory, ..)
+ * Converters that can be attached to Option specifications that in turn perform type conversions from the original
+ * string values to other types (e.g. file, directory, ..)
  * 
  * @author dr1fter
- *
+ * 
  */
 public class Converters
 {
-	public static class Identity implements Function<String,String>
+	public static class Identity implements Function<String, String>
 	{
 		public String apply(String str)
 		{
 			return str;
 		}
 	}
-	
-	public static class FileOrDirectory implements Function<String,File>
+
+	public static class FileOrDirectory implements Function<String, File>
 	{
 		public File apply(String str)
 		{
 			return new File(str);
 		}
 	}
-	
-	public static class FileThatExists implements Function<String,File>
+
+	public static class FileThatExists implements Function<String, File>
 	{
 		public File apply(String str)
 		{
 			File f = new File(str);
-			if (! f.isFile()) throw new RuntimeException("file does not exist: " + str);
+			if (!f.isFile())
+				throw new RuntimeException("file does not exist: " + str);
 			return f;
 		}
 	}
-	
-	public static class DirectoryThatExists implements Function<String,File>
+
+	public static class DirectoryThatExists implements Function<String, File>
 	{
 		public File apply(String str)
 		{
 			File f = new File(str);
-			if (! f.isDirectory()) throw new RuntimeException("directory does not exist: " + str);
+			if (!f.isDirectory())
+				throw new RuntimeException("directory does not exist: " + str);
 			return f;
+		}
+	}
+
+	public static class IntegerValue implements Function<String, Integer>
+	{
+		public Integer apply(String str)
+		{
+			return Integer.parseInt(str);
 		}
 	}
 }

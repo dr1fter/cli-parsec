@@ -15,6 +15,7 @@ import static de.dr1fter.cliparsec.ArrayUtils.insertAfter;
 import static de.dr1fter.cliparsec.ArrayUtils.tail;
 import static de.dr1fter.cliparsec.ParsingResult.Status.HELP;
 import static de.dr1fter.cliparsec.ParsingResult.Status.SUCCESS;
+import static de.dr1fter.cliparsec.ParsingResultImpl.fromCommandStrStack;
 import static de.dr1fter.cliparsec.ReflectionUtils.allFieldsAsAccessible;
 import static de.dr1fter.cliparsec.ReflectionUtils.hasAnnotation;
 import static de.dr1fter.cliparsec.ReflectionUtils.tryToCreateInstance;
@@ -30,7 +31,9 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.util.ArrayDeque;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.List;
 import java.util.Set;
 
@@ -75,17 +78,25 @@ class CliParserImpl extends CliParser
 	 */
 	public <T> ParsingResult<T> parse(T options, String... rawArgs) throws Exception
 	{
+		return parse(null,options,rawArgs);
+	}
+
+	@SuppressWarnings("unchecked")
+	private <T> ParsingResult<T> parse(ParsingCtx lastCtx, T options, String... rawArgs) throws Exception
+	{
 		checkNotNull(options);
 		checkNotNull(rawArgs);
-		
+
 		Class<?> clazz = options.getClass();
 		Iterable<Field> optionFields = annotatedOptionFields(clazz);
 		Iterable<Field> helpOptionFields = annotatedHelpOptionFields(clazz);
-		
+
 		Iterable<CommandRegistration> commands = annotatedCommands(clazz);
 
+
 		ParsingCtx ctx = new ParsingCtx(rawArgs, optionFields, helpOptionFields, commands);
-		
+		if(lastCtx != null) ctx.commands = lastCtx.commands;
+
 		for (; ctx.hasNext();)
 		{
 			ctx.determineAndConsumeNextFields();
@@ -100,23 +111,21 @@ class CliParserImpl extends CliParser
 			OutputStreamWriter osw = new OutputStreamWriter(out);
 			osw.write(HelpFormatter.formatHelp(ctx));
 			osw.flush();
-			return new ParsingResultImpl<T>(options,HELP,remainder);
+			return new ParsingResultImpl<T>(options,HELP,remainder, fromCommandStrStack(ctx.getCmdStack()));
 		}
 
 		if (remainder.length == 0 || ctx.state == ParsingCtx.ParsingState.OPERANDS)
-			return new ParsingResultImpl<T>(options,SUCCESS, remainder);
+			return new ParsingResultImpl<T>(options,SUCCESS, remainder, fromCommandStrStack(ctx.getCmdStack()));
 
 		// parse sub command if such a command exists.
 		CommandRegistration subCommand = determineSubCommand_orFail(
 				remainder[0], commands);
 		initialiseSubCommand_ifRequired(subCommand,options);
+		ctx.pushCommand(remainder[0]);
 
-		parse(subCommand.field.get(options), tail(remainder));
-
-		return new ParsingResultImpl<T>(options,SUCCESS, remainder);
+		return (ParsingResult<T>) parse(ctx, subCommand.field.get(options), tail(remainder));
 	}
 
-	
 	private <T> void initialiseSubCommand_ifRequired(CommandRegistration subCommand, T options)
 	{
 		Field commandField = subCommand.field;
@@ -236,7 +245,8 @@ class CliParserImpl extends CliParser
 	
 	private static class ParsingCtx
 	{
-
+		private Deque<String> commands = new ArrayDeque<String>();
+		
 		private final Set<FieldRegistration>		allOptionFields;
 		private final Set<HelpOptionFieldRegistration>	helpOptionFields;
 
@@ -291,6 +301,17 @@ class CliParserImpl extends CliParser
 		{
 			return helpOption;
 		}
+		
+		public void pushCommand(String commandStr)
+		{
+			commands.push(commandStr);
+		}
+		
+		public Deque<String> getCmdStack()
+		{
+			return commands;
+		}
+		
 
 		public String[] remainingArgs()
 		{
@@ -301,8 +322,6 @@ class CliParserImpl extends CliParser
 		{
 			return args[pos++];
 		}
-		
-		
 		
 		private String peek()
 		{
