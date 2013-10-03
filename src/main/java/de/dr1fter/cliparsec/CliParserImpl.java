@@ -93,9 +93,8 @@ class CliParserImpl extends CliParser
 
 		Iterable<CommandRegistration> commands = annotatedCommands(clazz);
 
-
 		ParsingCtx ctx = new ParsingCtx(rawArgs, optionFields, helpOptionFields, commands);
-		if(lastCtx != null) ctx.commands = lastCtx.commands;
+		cpLastCtx(lastCtx,ctx);
 
 		for (; ctx.hasNext();)
 		{
@@ -103,7 +102,7 @@ class CliParserImpl extends CliParser
 			ctx.setOrAppendToField(options);
 		}
 		String[] remainder = ctx.remainingArgs();
-		
+
 		//display help and exit if help option was specified or there was no arg at all
 		if(ctx.helpOption() && remainder.length == 0 
 				|| (rawArgs.length == 0 && helpOptionFields.iterator().hasNext()))
@@ -124,6 +123,21 @@ class CliParserImpl extends CliParser
 		ctx.pushCommand(remainder[0]);
 
 		return (ParsingResult<T>) parse(ctx, subCommand.field.get(options), tail(remainder));
+	}
+
+	/**
+	 * copies a subset of a previous parsing ctx into the given new parsing ctx. if previous parsing ctx is the
+	 * null reference, nothing is done.
+	 * 
+	 * @param lastCtxOrNull may be <code>null</code>
+	 * @param newCtx the new ctx to copy to, not <code>null</code>
+	 */
+	private void cpLastCtx(ParsingCtx lastCtxOrNull, ParsingCtx newCtx)
+	{
+		if(lastCtxOrNull == null) return;
+		newCtx.commands = lastCtxOrNull.commands;
+		newCtx.helpOption = lastCtxOrNull.helpOption;
+		//TODO: use another approach for ctx-inheritance / nesting. e.g. make ctx hierarchical?
 	}
 
 	private <T> void initialiseSubCommand_ifRequired(CommandRegistration subCommand, T options)

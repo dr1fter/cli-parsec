@@ -21,6 +21,12 @@ public class Converters
 		}
 	}
 
+	/**
+	 * converts given <code>strings</code> to <code>File</code> objects. No verifications are done.
+	 * 
+	 * @author Christian Cwienk (dr1fter)
+	 * 
+	 */
 	public static class FileOrDirectory implements Function<String, File>
 	{
 		public File apply(String str)
@@ -29,6 +35,13 @@ public class Converters
 		}
 	}
 
+	/**
+	 * converts given <code>strings</code> that denote existing, accessible files to <code>File</code> objects. File
+	 * existence is verified.
+	 * 
+	 * @author Christian Cwienk (dr1fter)
+	 * 
+	 */
 	public static class FileThatExists implements Function<String, File>
 	{
 		public File apply(String str)
@@ -40,6 +53,13 @@ public class Converters
 		}
 	}
 
+	/**
+	 * converts given <code>strings</code> that denote existing, accessible directories to <code>File</code> objects.
+	 * Directory existence is verified.
+	 * 
+	 * @author Christian Cwienk (dr1fter)
+	 * 
+	 */
 	public static class DirectoryThatExists implements Function<String, File>
 	{
 		public File apply(String str)
@@ -51,6 +71,12 @@ public class Converters
 		}
 	}
 
+	/**
+	 * converts given <code>strings</code> containing integer values to <code>Integer</code> objects.
+	 * 
+	 * @author Christian Cwienk (dr1fter)
+	 * 
+	 */
 	public static class IntegerValue implements Function<String, Integer>
 	{
 		public Integer apply(String str)
