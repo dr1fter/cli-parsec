@@ -1,15 +1,14 @@
 package de.dr1fter.cliparsec;
 
 
+import static org.hamcrest.Matchers.arrayContaining;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertThat;
 
 import org.junit.Test;
 
-import de.dr1fter.cliparsec.CliParser;
-import de.dr1fter.cliparsec.ParsingResult;
 import de.dr1fter.cliparsec.annotations.Option;
 
 public class OptionsParserTest
@@ -75,6 +74,16 @@ public class OptionsParserTest
 		assertThat(opts.option1, is("option1"));
 		assertThat(opts.option2, is(nullValue()));
 		assertThat(operands.operands(),is(new String[]{"-2", "should", "--not.be", "-@parsed"}));
+	}
+	
+	@Test
+	public void parameters_should_be_processed_properly() throws Exception
+	{
+		OptionsWithArgs opts = new OptionsWithArgs();
+		
+		ParsingResult<OptionsWithArgs> result = examinee.parse(opts, "first", "second", "third");
+		
+		assertThat(result.operands(), arrayContaining("first", "second", "third"));
 	}
 	
 	private static class OptionsWithoutArgs

@@ -9,6 +9,11 @@ import com.google.common.base.Function;
 
 import de.dr1fter.cliparsec.Converters;
 
+/**
+ * declares an option in the context of a command. The option's value is mapped to the field's value.
+ * 
+ * @author Christian Cwienk (dr1fter)
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
 public @interface Option

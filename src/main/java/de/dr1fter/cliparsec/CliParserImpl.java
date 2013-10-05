@@ -307,8 +307,15 @@ class CliParserImpl extends CliParser
 				return (state= ParsingState.OPERANDS)==null&consume()!=null;
 			
 			// --> ensure the next arg is not a subcommand (in which case we do not want to continue)
-			return !from(subCommands)
+			boolean isSubCommand = from(subCommands)
 					.anyMatch(compose(equalTo(currentRawArg), CommandRegistration.getCommandName));
+			
+			if(isSubCommand) return false;
+			
+			if(currentRawArg.startsWith(DASH)) return true;
+			
+			//if current arg is no option, it supposedly is a bare argument -> stop parsing
+			return state == (state = ParsingState.OPERANDS);			
 		}
 		
 		public boolean helpOption()
