@@ -5,7 +5,7 @@
 	<!-- this artifact's coordinates (GAVCE) -->
 	<groupId>de.dr1fter</groupId>
 	<artifactId>de.dr1fter.cli-parsec</artifactId>
-	<version>0-SNAPSHOT</version>
+	<version>0.1-MS6</version>
 	<packaging>jar</packaging>
 	
 	<name>CLI-Parsec - a declarative CLI-Parser-Framework</name>
@@ -38,7 +38,7 @@
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
-			<version>15.0</version>
+			<version>16.0</version>
 		</dependency>
 
 		<!-- test code dependencies -->
