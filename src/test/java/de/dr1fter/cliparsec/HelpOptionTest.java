@@ -39,6 +39,15 @@ public class HelpOptionTest
 	}
 
 	@Test
+	public void description_should_be_printed() throws Exception
+	{
+		parse(new String[0]);
+
+		assertThat(outputStr(), containsString("description of option1"));
+		assertThat(outputStr(), containsString("description of flagOption1"));
+	}
+
+	@Test
 	public void help_should_be_printed_on_help_long_option() throws Exception
 	{
 		parse("--haalp!", "--option1", "x");
@@ -87,9 +96,9 @@ public class HelpOptionTest
 
 	private static class OptionsWithHelpOption
 	{
-		@Option
+		@Option(description="description of option1")
 		private String	option1;
-		@Option
+		@Option(description="description of flagOption1")
 		private boolean	flagOption1;
 
 		@HelpOption(longOption = "haalp!", shortOption = 'X')

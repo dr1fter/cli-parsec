@@ -7,6 +7,7 @@ import static com.google.common.base.Predicates.equalTo;
 import static com.google.common.base.Predicates.notNull;
 import static com.google.common.base.Predicates.or;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.google.common.base.Strings.padEnd;
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Iterables.transform;
 import static com.google.common.collect.Lists.newArrayList;
@@ -44,6 +45,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Ordering;
 
 import de.dr1fter.cliparsec.annotations.Command;
 import de.dr1fter.cliparsec.annotations.HelpOption;
@@ -813,41 +815,72 @@ class CliParserImpl extends CliParser
 	@Beta
 	static class HelpFormatter
 	{
-		@Beta
-		public static String formatHelp(ParsingCtx ctx)
+		private static Function<de.dr1fter.cliparsec.CliParserImpl.ParsingCtx.FieldRegistration,
+			String> toOptionPreamble = new Function<CliParserImpl.ParsingCtx.FieldRegistration, String>()
 		{
-			StringBuilder s = new StringBuilder();
-			
-			s.append("Options:\n");
-			//handle options
-			for(de.dr1fter.cliparsec.CliParserImpl.ParsingCtx.FieldRegistration f : ctx.allOptionFields)
+			@Override
+			public String apply(CliParserImpl.ParsingCtx.FieldRegistration input)
 			{
-				Character shortOption = ParsingCtx.Utils.shortOption(f);
-				String longOption = ParsingCtx.Utils.longOption(f);
-				
+				Character shortOption = ParsingCtx.Utils.shortOption(input);
+				String longOption = ParsingCtx.Utils.longOption(input);
+
 				String shortText = shortOption != null? DASH + shortOption : null;
 				String longText = longOption != null? DDASH + longOption : null;
 				String beginning =  on('|').skipNulls().join(shortText,longText);
-				
+
 				String argList = null;
-				
-				if (f.hasArgs())
+
+				if (input.hasArgs())
 				{
-					if(f.formalArgCount() == -1)
+					if(input.formalArgCount() == -1)
 						argList = "<list>";
 					else
 					{
 						List<String> args = newArrayList();
-						for(int i = 0; i < f.argCount(); )
+						for(int i = 0; i < input.argCount(); )
 							args.add("arg" + i++);
 						argList = on(' ').join(args);
 					}
 				}
-				
-				String result = "[" + on(' ').skipNulls().join(beginning,argList) + "]\n";
-				s.append(result);
+				return "[" + on(' ').skipNulls().join(beginning,argList) + "]";
 			}
-			
+		};
+
+		private static Function<de.dr1fter.cliparsec.CliParserImpl.ParsingCtx.FieldRegistration,
+		String> toDescription(final int descriptionOffset)
+		{
+			return new Function<CliParserImpl.ParsingCtx.FieldRegistration, String>()
+			{
+				@Override
+				public String apply(CliParserImpl.ParsingCtx.FieldRegistration input)
+				{
+					return padEnd(toOptionPreamble.apply(input),descriptionOffset,' ')
+							+ input.annotation.description();
+				}
+			};
+		}
+
+		private static Function<String,Integer>selectLength = new Function<String, Integer>()
+		{
+			@Override
+			public Integer apply(String input)
+			{
+				return input.length();
+			}
+		};
+
+		@Beta
+		public static String formatHelp(ParsingCtx ctx)
+		{
+			StringBuilder s = new StringBuilder();
+
+			s.append("Options:\n");
+			//handle options
+			Iterable<String> preambles = from(ctx.allOptionFields).transform(toOptionPreamble);
+			Integer maxLeng = Ordering.natural().max(from(preambles).transform(selectLength));
+			final int INDENTION = 4;
+			s.append(on('\n').join(from(ctx.allOptionFields).transform(toDescription(maxLeng + INDENTION))));
+
 			//handle commands
 			if (Iterables.size(ctx.subCommands) > 0)
 				s.append("\nsub commands:\n");

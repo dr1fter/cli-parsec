@@ -52,6 +52,13 @@ public @interface Option
 	int argCount() default ARG_COUNT_DEFAULT_BEHAVIOUR;
 
 	/**
+	 * A brief description of the option that will be displayed in the generated help
+	 *
+	 * @return the description text to be displayed for the option. not <code>null</code>
+	 */
+	String description() default "";
+
+	/**
 	 * An optional converter that is invoked for option arguments immediately after they are read from the raw cmd line
 	 * args prior to assigning them to the annotated option field. If not specified, arguments remain strings (and thus
 	 * the annotated field must be of type {@code String} (or {@code boolean} for options w/o args).
