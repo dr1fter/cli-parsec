@@ -86,36 +86,58 @@ public class OptionsParserTest
 		assertThat(result.operands(), arrayContaining("first", "second", "third"));
 	}
 	
+	@Test
+	public void options_should_be_inherited() throws Exception
+	{
+		ExtendedOptions opts = new ExtendedOptions();
+
+		examinee.parse(opts, "--option1", "value1", "--baseOption1", "value2");
+
+		assertThat(opts.option1, is("value1"));
+		assertThat(opts.baseOption1, is("value2"));
+	}
+
 	private static class OptionsWithoutArgs
 	{
 		@Option(longOption="option1",shortOption='1', argCount=0)
 		public boolean option1;
-		
+
 		@Option(shortOption='2', argCount=0)
 		public boolean option2;
-		
+
 		@Option(shortOption='3')
 		public boolean option3;
-		
+
 		@Option(shortOption='4', argCount=0)
 		public boolean option4;
 	}
-	
+
 	private static class OptionsWithArgs
 	{
 		@Option(longOption="option",shortOption='o')
 		public String option1;
 		@Option()
 		public String option2;
-		
+
 		@Option(shortOption='2')
 		public String opt3;
 		@Option(longOption="long", shortOption='4')
 		public String shortOpt4;
-		
+
 		@Option(maxOccurs=4)
 		public String[] arr;
 	}
-	
-	
+
+	private static class BaseOptions
+	{
+		@Option(longOption="baseOption1")
+		String baseOption1;
+	}
+
+	private static class ExtendedOptions extends BaseOptions
+	{
+		@Option
+		String option1;
+	}
+
 }

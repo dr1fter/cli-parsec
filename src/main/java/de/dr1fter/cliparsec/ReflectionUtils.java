@@ -78,7 +78,9 @@ final class ReflectionUtils
 		//nonpublic fields are both inherited or declared fields of any visiblity
 		// while public fields are only those fields that are public and declared in 'clazz'
 		
-		return concat(publicFields,nonpublicFields);
+		//recursively do this for all super types
+		return clazz.getSuperclass()==null? concat(publicFields,nonpublicFields)
+				: concat(concat(publicFields,nonpublicFields), allFieldsAsAccessible(clazz.getSuperclass()));
 	}
 
 	static <T extends AccessibleObject> Function<T,T> makeAccessible()
