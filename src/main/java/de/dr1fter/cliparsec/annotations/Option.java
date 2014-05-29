@@ -24,7 +24,52 @@ public @interface Option
 
 	char shortOption() default NOT_SET;
 
+	/**
+	 * The long option as it is to be expected from the command line. Defaults to the field's name if not specified.
+	 *  
+	 * @return not <code>null</code>
+	 */
 	String longOption() default "";
+
+	/**
+	 * An expression desribing whether or not the option is "required" (meaning that its absence will be regarded
+	 * as an error). Defaults to the empty string, which means that the option is optional.
+	 * <p>
+	 * The simplest possible expressions would be <code>true</code> or <code>false</code> (the latter being the 
+	 * default.
+	 * <p>
+	 * The underlying expression language allows for the declarations of arbitrarily complex conditions of when a
+	 * given option is to be regarded 'required' by the parser (e.g. an option1 might only be required if and only if
+	 * an option2 is absent).
+	 * <p>
+	 * The grammar is defined as follows. Whitespace is discarded and may be placed arbitrarily.
+	 * <p>
+	 * &ltexpr&gt ::= &ltbool&gt | ( &ltexpr&gt ) | !&ltexpr&gt | &ltexpr&gt &ltoperator&gt &ltexpr&gt | present(&ltfield&gt)</br>
+	 * &ltbool&gt ::= "true" | "false"</br>
+	 * &ltoperator&gt ::= "&" | "|"</br>
+	 * &ltfield&gt ::= alphanumeric+underscore (same as for fields in the Java language)
+	 * 
+	 * <p>
+	 * <b>Precedence</b></br>
+	 * The <code>AND (&)</code> operator has precedence over the <code>OR (|)</code> operator. Brackets may be
+	 * used to enforce a different evaluation order. The <code>NOT (!)</code> operator is an unary operator 
+	 * negating its <em>right</em> expression. It has higher precedence than the binary boolean operators.
+	 * <p>
+	 * <b>present function</b></br>
+	 * The <code>present(field)</code> function is evaluated to <code>true</code> iff an argument for the 
+	 * parameter described by the field is present at least once in the actual command line arguments (otherwise
+	 * it evaluates to <code>false</code>). Only fields describing options (i.e. that are annotated with
+	 * the @Option annotation and declared in the same type or a supertype) may be described (this may be extended
+	 * in future versions of this library). Using field names that do not match the name of a field for which the
+	 * afforedescribed conditions apply will lead to a <code>RuntimeException</code>.
+	 * <code>
+	 * Note: <em>Referencing fields this way is intrinsically refactoring-unsafe.</em> Therefore, it is recommended
+	 * to document this at all referenced fields.
+	 * 
+	 * @Beta
+	 * @return not <code>null</code>
+	 */
+	String required() default "";
 
 	/**
 	 * The maximum amount of occurrences of this option. If not specified, the default behaviour is

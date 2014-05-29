@@ -2,19 +2,31 @@ package de.dr1fter.cliparsec;
 
 
 import static org.hamcrest.Matchers.arrayContaining;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
+import java.io.ByteArrayOutputStream;
+
 import org.junit.Test;
 
+import de.dr1fter.cliparsec.ParsingResult.Status;
 import de.dr1fter.cliparsec.annotations.Option;
 
 public class OptionsParserTest
 {
-	CliParser examinee = CliParser.createCliParser();
-	
+	ByteArrayOutputStream	out			= new ByteArrayOutputStream();
+	CliParser examinee = CliParser.createCliParser(out);
+
+	String outputStr()
+	{
+		return out.toString();
+	}
+
+
 	@Test
 	public void global_options_with_args_should_be_parsed() throws Exception
 	{
@@ -97,6 +109,30 @@ public class OptionsParserTest
 		assertThat(opts.baseOption1, is("value2"));
 	}
 
+	@Test
+	public void required_option_should_be_enforced() throws Exception
+	{
+		OptionsWithRequiredOptions opts = new OptionsWithRequiredOptions();
+
+		ParsingResult<OptionsWithRequiredOptions> result = examinee.parse(opts, "--optOption1");
+
+		assertThat(result.status(), is(Status.ERROR));
+		assertThat(outputStr(), containsString("the following arguments are required but were not present:"));
+		assertThat(outputStr(), containsString("--reqOption2"));
+	}
+
+	@Test
+	public void complex_required_conditions_should_work() throws Exception
+	{
+		OptionsWithComplexRequiredOptions opts = new OptionsWithComplexRequiredOptions();
+
+		ParsingResult<OptionsWithComplexRequiredOptions> result = examinee.parse(opts, "--optOption1");
+
+		assertThat(result.status(), is(Status.ERROR));
+		assertThat(outputStr(), containsString("--req1"));//req1 must be set because optOption1 is present
+		assertThat(outputStr(),not(containsString("--req2")));//req2 needs not be present because optOption1 is present
+	}
+
 	private static class OptionsWithoutArgs
 	{
 		@Option(longOption="option1",shortOption='1', argCount=0)
@@ -140,4 +176,27 @@ public class OptionsParserTest
 		String option1;
 	}
 
+	private static class OptionsWithRequiredOptions
+	{
+		@Option(required="false")
+		boolean optOption1;
+
+		@Option(required="true")
+		String reqOption2;
+	}
+
+	private static class OptionsWithComplexRequiredOptions
+	{
+		@Option
+		boolean optOption1;
+
+		@Option
+		boolean optOption2;
+
+		@Option(required="present(optOption1)|!present(optOption2)")
+		boolean req1;
+
+		@Option(required="!present(optOption1)&!present(optOption2)")
+		boolean req2;
+	}
 }

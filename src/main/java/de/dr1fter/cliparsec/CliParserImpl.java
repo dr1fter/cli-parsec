@@ -14,6 +14,7 @@ import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Sets.newHashSet;
 import static de.dr1fter.cliparsec.ArrayUtils.insertAfter;
 import static de.dr1fter.cliparsec.ArrayUtils.tail;
+import static de.dr1fter.cliparsec.ParsingResult.Status.ERROR;
 import static de.dr1fter.cliparsec.ParsingResult.Status.HELP;
 import static de.dr1fter.cliparsec.ParsingResult.Status.SUCCESS;
 import static de.dr1fter.cliparsec.ParsingResultImpl.fromCommandStrStack;
@@ -47,6 +48,7 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 
+import de.dr1fter.cliparsec.CliParserImpl.ParsingCtx.FieldRegistration;
 import de.dr1fter.cliparsec.annotations.Command;
 import de.dr1fter.cliparsec.annotations.HelpOption;
 import de.dr1fter.cliparsec.annotations.Option;
@@ -60,12 +62,12 @@ class CliParserImpl extends CliParser
 	CliParserImpl()
 	{		super(System.out);
 	}
-	
+
 	CliParserImpl(OutputStream outStream)
 	{
 		super(checkNotNull(outStream));
 	}
-	
+
 	/**
 	 * parses the given command line arguments based on the command line interface definition derived from
 	 * the given options object. The command line arguments are written to the given options object 
@@ -103,6 +105,7 @@ class CliParserImpl extends CliParser
 			ctx.determineAndConsumeNextFields();
 			ctx.setOrAppendToField(options);
 		}
+
 		String[] remainder = ctx.remainingArgs();
 
 		//display help and exit if help option was specified or there was no arg at all
@@ -113,6 +116,19 @@ class CliParserImpl extends CliParser
 			osw.write(HelpFormatter.formatHelp(ctx));
 			osw.flush();
 			return new ParsingResultImpl<T>(options,HELP,remainder, fromCommandStrStack(ctx.getCmdStack()));
+		}
+
+		List<FieldRegistration> missingArgs = from(ctx.allOptionFields)
+			.filter(ParsingCtx.Utils.absent())
+			.filter(RequiredExprParser.Utils.required(new RequiredExprParser(ctx))).toList();
+		if(!missingArgs.isEmpty())
+		{
+			StringBuilder s = new StringBuilder("ERROR: the following arguments are required but were not present: ");
+			s.append(on('\n').join(from(missingArgs).transform(ParsingCtx.Utils.selectArgDescription())));
+			OutputStreamWriter osw = new OutputStreamWriter(out);
+			osw.write(s.toString());
+			osw.flush();
+			return new ParsingResultImpl<T>(options, ERROR, remainder, fromCommandStrStack(ctx.getCmdStack()));
 		}
 
 		if (remainder.length == 0 || ctx.state == ParsingCtx.ParsingState.OPERANDS)
@@ -259,7 +275,7 @@ class CliParserImpl extends CliParser
 	private static final String	DASH	= "-";
 	private static final String DDASH	= DASH + DASH;
 	
-	private static class ParsingCtx
+	static class ParsingCtx
 	{
 		private Deque<String> commands = new ArrayDeque<String>();
 		
@@ -319,22 +335,21 @@ class CliParserImpl extends CliParser
 			//if current arg is no option, it supposedly is a bare argument -> stop parsing
 			return state == (state = ParsingState.OPERANDS);			
 		}
-		
+
 		public boolean helpOption()
 		{
 			return helpOption;
 		}
-		
+
 		public void pushCommand(String commandStr)
 		{
 			commands.push(commandStr);
 		}
-		
+
 		public Deque<String> getCmdStack()
 		{
 			return commands;
 		}
-		
 
 		public String[] remainingArgs()
 		{
@@ -349,6 +364,11 @@ class CliParserImpl extends CliParser
 		private String peek()
 		{
 			return args[pos];
+		}
+
+		Optional<FieldRegistration> fieldRegistration(String name)
+		{
+			return from(allOptionFields).firstMatch(Predicates.compose(equalTo(name), Utils.selectFieldName()));
 		}
 
 		/**
@@ -547,7 +567,7 @@ class CliParserImpl extends CliParser
 			OPTIONS, OPERANDS, HELP
 		}
 		
-		private class FieldRegistration
+		class FieldRegistration
 		{
 			public final Field	field;
 			public final int	maxOccurs;
@@ -706,7 +726,7 @@ class CliParserImpl extends CliParser
 
 				return null;
 			}
-			
+
 			static final Character shortOption(HelpOptionFieldRegistration fr)
 			{
 				if (fr == null)
@@ -735,7 +755,7 @@ class CliParserImpl extends CliParser
 				// fallback to field name:
 				return fr.field.getName();
 			}
-			
+
 			static final String longOption(HelpOptionFieldRegistration fr)
 			{
 				if (fr == null)
@@ -747,7 +767,7 @@ class CliParserImpl extends CliParser
 				// fallback to field name:
 				return fr.field.getName();
 			}
-			
+
 			static final Function<HelpOptionFieldRegistration,String> toLongOption()
 			{
 				return new Function<HelpOptionFieldRegistration,String>()
@@ -758,7 +778,7 @@ class CliParserImpl extends CliParser
 					}
 				};
 			}
-			
+
 			static final Function<HelpOptionFieldRegistration,Character> toShortOption()
 			{
 				return new Function<HelpOptionFieldRegistration,Character>()
@@ -769,7 +789,53 @@ class CliParserImpl extends CliParser
 					}
 						};
 			}
-			
+
+			static final Function<FieldRegistration,String> selectFieldName()
+			{
+				return new Function<FieldRegistration,String>()
+					{
+						@Override
+						public String apply(FieldRegistration input)
+						{
+							return input.field.getName();
+						}
+					};
+			}
+
+			static final Function<FieldRegistration, String> selectArgDescription()
+			{
+				return new Function<FieldRegistration, String>()
+				{
+					@Override
+					public String apply(FieldRegistration input)
+					{
+						Character shortOption = ParsingCtx.Utils
+								.shortOption(input);
+						String longOption = ParsingCtx.Utils.longOption(input);
+
+						String shortText = shortOption != null ? DASH
+								+ shortOption : null;
+						String longText = longOption != null ? DDASH
+								+ longOption : null;
+						String beginning = on('|').skipNulls().join(shortText,
+								longText);
+
+						return beginning;
+					}
+				};
+			}
+
+			static final Predicate<FieldRegistration> absent()
+			{
+				return new Predicate<CliParserImpl.ParsingCtx.FieldRegistration>()
+				{
+					@Override
+					public boolean apply(FieldRegistration input)
+					{
+						return input.occurs==0;
+					}
+				};
+			}
 			
 			static final Predicate<String> allUntil (final Predicate<String> predicate)
 			{				
