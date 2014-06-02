@@ -124,7 +124,8 @@ class CliParserImpl extends CliParser
 		if(!missingArgs.isEmpty())
 		{
 			StringBuilder s = new StringBuilder("ERROR: the following arguments are required but were not present: ");
-			s.append(on('\n').join(from(missingArgs).transform(ParsingCtx.Utils.selectArgDescription())));
+			s.append(on('\n').join(from(missingArgs).transform(ParsingCtx.Utils.selectArgDescription())))
+				.append("\n");
 			OutputStreamWriter osw = new OutputStreamWriter(out);
 			osw.write(s.toString());
 			osw.flush();
@@ -896,7 +897,7 @@ class CliParserImpl extends CliParser
 
 				String argList = null;
 
-				if (input.hasArgs())
+				if (input.formalArgCount()!=0)
 				{
 					if(input.formalArgCount() == -1)
 						argList = "<list>";

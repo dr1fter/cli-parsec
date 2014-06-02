@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayOutputStream;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -75,6 +76,15 @@ public class HelpOptionTest
 	}
 
 	@Test
+	public void help_should_be_printed_for_list_option() throws Exception
+	{
+		parse();
+
+		assertThat(outputStr(), containsString("listOption1"));
+		assertThat(outputStr(), containsString("<list>"));
+	}
+
+	@Test
 	public void help_should_be_printed_for_subcommand_of_subcommand()
 			throws Exception
 	{
@@ -100,6 +110,9 @@ public class HelpOptionTest
 		private String	option1;
 		@Option(description="description of flagOption1")
 		private boolean	flagOption1;
+
+		@Option(description="description of listOption1")
+		private List<String> listOption1;
 
 		@HelpOption(longOption = "haalp!", shortOption = 'X')
 		private Object	help;
