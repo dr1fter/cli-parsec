@@ -30,7 +30,7 @@ the library:
 <dependency>
   <groupId>de.dr1fter</groupId>
   <artifactId>de.dr1fter.cli-parsec</artifactId>
-  <version>ENTER VERSION HERE</version>
+  <version>0.2.1</version>
 </dependency>
 ```
 
